@@ -1,0 +1,45 @@
+diff --git a/node_modules/@react-native-voice/voice/android/build.gradle b/node_modules/@react-native-voice/voice/android/build.gradle
+index 8fce879..a2a177f 100644
+--- a/node_modules/@react-native-voice/voice/android/build.gradle
++++ b/node_modules/@react-native-voice/voice/android/build.gradle
+@@ -2,7 +2,9 @@ apply plugin: 'com.android.library'
+ 
+ repositories {
+     mavenLocal()
+-    jcenter()
++    // jcenter() was removed in Gradle 9. mavenCentral() serves every artifact
++    // this module actually resolves.
++    mavenCentral()
+     maven {
+         // For developing the library outside the context of the example app, expect `react-native`
+         // to be installed at `./node_modules`.
+@@ -40,7 +42,7 @@ android {
+ buildscript {
+     if (project == rootProject) {
+         repositories {
+-            jcenter()
++            mavenCentral()
+         }
+         dependencies {
+             classpath 'com.android.tools.build:gradle:3.3.2'
+@@ -53,7 +55,7 @@ buildscript {
+ 
+ allprojects {
+     repositories {
+-        jcenter()
++        mavenCentral()
+     }
+ }
+ 
+@@ -62,6 +64,10 @@ def supportVersion = rootProject.hasProperty('supportLibVersion') ? rootProject.
+ dependencies {
+     implementation fileTree(dir: 'libs', include: ['*.jar'])
+     testImplementation 'junit:junit:4.12'
+-    implementation "com.android.support:appcompat-v7:${supportVersion}"
++    // Dropped: com.android.support:appcompat-v7. It is the pre-AndroidX support
++    // library, and Jetifier (which used to rewrite it) was removed after RN 0.72,
++    // so with android.useAndroidX=true it collides at dex time. Nothing needs it —
++    // the two Java sources import androidx.annotation.NonNull, which arrives
++    // transitively from React Native.
+     implementation 'com.facebook.react:react-native:+'
+ }

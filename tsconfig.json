@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    /* React Native runtime target. Values mirror
+       @react-native/typescript-config, inlined rather than extended: the
+       package restricts subpath exports, so `extends` cannot resolve it. */
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "customConditions": ["react-native"],
+    "jsx": "react-jsx",
+    "lib": ["esnext"],
+    "types": ["jest", "node"],
+    "noEmit": true,
+    "isolatedModules": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": false,
+
+    /* Project standards — guidelines §2.1. */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "modules/**/*.ts", "jest.setup.ts"],
+  "exclude": ["node_modules", "ios", "android", "**/Pods/**"]
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon. The launcher masks this to whatever shape the device uses, so the
+  mark is supplied as a foreground layer inside the 66dp safe zone with the ground
+  as a flat colour behind it. Handing the launcher the full-bleed artwork instead
+  gets it scaled up and cropped, which cuts the C.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

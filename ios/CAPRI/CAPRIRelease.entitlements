@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Shared container for NON-SECRET data the home-screen widget needs.
+	     The session token is NOT here — it lives in the Keychain group below.
+	     Must also be enabled on the widget extension target. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.base69aa4c4d4f33993320ae7f08.app</string>
+	</array>
+	<!-- Keychain group shared with the widget extension, so the token has one
+	     home instead of a second plaintext copy in App Group UserDefaults.
+
+	     Deliberately a single entry: with no kSecAttrAccessGroup passed at
+	     runtime, iOS files items under the FIRST group listed here, and a JS
+	     caller cannot name the group itself — the real value needs the team
+	     prefix that $(AppIdentifierPrefix) expands to at build time.
+
+	     The widget extension needs this same entry to read the token. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.base69aa4c4d4f33993320ae7f08.app.shared</string>
+	</array>
+	<!-- Production APNs. The Debug entitlements use `development`; the value has
+	     to match the provisioning profile, so the two configurations carry
+	     separate files rather than one file that is wrong half the time. -->
+	<key>aps-environment</key>
+	<string>production</string>
+</dict>
+</plist>

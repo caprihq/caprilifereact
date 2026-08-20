@@ -1,0 +1,117 @@
+# Resolve react_native_pods.rb with node to allow for hoisting
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native/scripts/react_native_pods.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+platform :ios, min_ios_version_supported
+prepare_react_native_project!
+
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+# Firebase through CocoaPods rather than Swift Package Manager.
+#
+# react-native-firebase prefers SPM now, and refuses to generate a project when SPM
+# is combined with static linkage — which is React Native's default here. Each
+# Firebase pod would embed its own copy of the SPM products (they are automatic
+# libraries, not dynamic), so they collide as duplicate symbols at link time.
+#
+# The alternative fix is `use_frameworks! :linkage => :dynamic` for the whole app,
+# which changes how every dependency links and slows startup. Opting Firebase out of
+# SPM is the smaller change and the long-standing path.
+$RNFirebaseDisableSPM = true
+
+target 'CAPRI' do
+  config = use_native_modules!
+
+  # Firebase's Swift pods import these three, which ship without module maps. As
+  # static libraries that cannot work, so Swift cannot see them and `pod install`
+  # refuses to integrate. Naming them individually rather than reaching for a global
+  # `use_modular_headers!`, which would change header visibility for every pod in the
+  # project — including React Native's own.
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'GoogleDataTransport', :modular_headers => true
+  pod 'nanopb', :modular_headers => true
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      # :ccache_enabled => true
+    )
+  end
+end
+
+# Runs *after* CocoaPods writes the user project. `post_install` is too early: the
+# integration step that follows it rewrites `CAPRI.xcodeproj` from CocoaPods' own
+# in-memory copy, so a patch applied there is saved and then immediately discarded.
+post_integrate do |installer|
+  skip_crashlytics_without_config(installer)
+end
+
+# Firebase's dSYM upload must not fail a build that has no Firebase config.
+#
+# `@react-native-firebase/crashlytics` installs a `[CP-User] [RNFB] Crashlytics
+# Configuration` phase that runs `${PODS_ROOT}/FirebaseCrashlytics/run`. The first
+# thing that script does is read `GOOGLE_APP_ID` out of `GoogleService-Info.plist`,
+# and it runs under `set -e`, so with no config file the build dies with:
+#
+#   Could not get GOOGLE_APP_ID in Google Services file from build environment
+#
+# The project has never had that file, on either platform. Android already copes —
+# its Gradle setup logs "google-services.json not found — Crashlytics and push are
+# disabled for this build" and carries on — and the app copes at runtime, logging
+# that no default Firebase app exists. iOS was the only place where a missing
+# *optional* integration was fatal.
+#
+# So the phase gets a guard: no plist, no upload, build continues. Add the real
+# `GoogleService-Info.plist` and the guard falls through to the upload untouched.
+#
+# **Patched here rather than in the Xcode project** because CocoaPods regenerates
+# that phase from the podspec on every `pod install`, which would silently undo an
+# edit made in Xcode.
+def skip_crashlytics_without_config(installer)
+  # POSIX test, not `[[ ]]`: CocoaPods runs these phases under /bin/sh.
+  guard = <<~'SHELL'
+    if [ ! -f "${PROJECT_DIR}/GoogleService-Info.plist" ] && \
+       [ ! -f "${PROJECT_DIR}/CAPRI/GoogleService-Info.plist" ]; then
+      echo "warning: GoogleService-Info.plist not found - skipping Crashlytics dSYM upload."
+      exit 0
+    fi
+  SHELL
+
+  projects = installer.aggregate_targets.map(&:user_project).compact.uniq
+  projects.each do |project|
+    patched = false
+
+    project.targets.each do |target|
+      target.shell_script_build_phases.each do |phase|
+        next unless phase.name.to_s.include?('Crashlytics')
+        next if phase.shell_script.include?('skipping Crashlytics dSYM upload')
+
+        # The shebang has to stay on line one, so the guard goes after it.
+        lines = phase.shell_script.lines
+        shebang = lines.first.to_s.start_with?('#!') ? lines.shift : ''
+        phase.shell_script = "#{shebang}#{guard}#{lines.join}"
+        patched = true
+      end
+    end
+
+    if patched
+      project.save
+      Pod::UI.puts 'Crashlytics phase guarded: skips when GoogleService-Info.plist is absent'.green
+    end
+  end
+end

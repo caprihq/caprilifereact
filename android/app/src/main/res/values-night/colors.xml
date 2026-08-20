@@ -1,0 +1,4 @@
+<resources>
+    <!-- Mirrors palette.slate900 -->
+    <color name="bootsplash_background">#0F172A</color>
+</resources>

@@ -1,0 +1,4 @@
+<resources>
+    <!-- Mirrors palette.iosGroupedBackground in src/design/tokens.ts -->
+    <color name="bootsplash_background">#F2F2F7</color>
+</resources>

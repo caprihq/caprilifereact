@@ -1,0 +1,20 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+    </style>
+
+    <!--
+      Launch theme for react-native-bootsplash. Colour only for now — matches
+      the app background in both schemes so launch does not flash white then
+      dark. Add a logo via the bootsplash generator when artwork exists.
+
+      The library throws at runtime if this theme is missing.
+    -->
+    <style name="BootTheme" parent="Theme.BootSplash">
+        <item name="bootSplashBackground">@color/bootsplash_background</item>
+        <item name="postBootSplashTheme">@style/AppTheme</item>
+    </style>
+
+</resources>

@@ -1,0 +1,6 @@
+export { assertNever } from './assertNever'
+export { diag, diagFailure, diagUrl, logError, logWarn, tokenFp, wire } from './log/diag'
+export { redactSecrets, stringifySafely } from './log/redactSecrets'
+export { describeError, summarizeError, redact } from './log/errorDetail'
+export type { ErrorDetail } from './log/errorDetail'
+export { toLocalDateString, isLocalToday, isLocalPast } from './localDate'
