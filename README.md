@@ -17,8 +17,6 @@ It shares **no code** with the web client. Every screen, and the scoring
 engine behind them, is implemented natively here. The only thing the two
 clients share is the Base44 backend — reached over HTTPS, not by import.
 
-- Coding standards: [CODING_GUIDELINES.md](./CODING_GUIDELINES.md)
-- Decision history and traps already hit: [WORKLOG.md](./WORKLOG.md)
 
 ## Layout
 
