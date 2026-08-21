@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native'
 
-import { useFeedbackStore } from '@/store/feedbackStore'
 import { requestPasswordReset } from '../services/passwordService'
 import { usePasswordReset } from './usePasswordReset'
+import type { ResetRequestOutcome } from './usePasswordReset'
 
 /**
  * The reported bug was "the Forgot button never runs": the request was firing,
@@ -13,8 +13,10 @@ import { usePasswordReset } from './usePasswordReset'
  * `renderHook` is awaited: in RTL v14 it is async, and it fills `result.current`
  * from an effect, so every read has to follow a settled `act`.
  *
- * The feedback store is real rather than mocked, so a test failure means the
- * user genuinely would not see a toast.
+ * The confirmation is no longer a toast: it slid away over a form that looked
+ * unchanged, which is why the request felt like it had done nothing. The hook now
+ * reports an outcome and the screen switches to "check your email", so what these
+ * assert is that outcome.
  */
 
 jest.mock('../services/passwordService', () => ({
@@ -45,8 +47,10 @@ const deferred = () => {
  * function awaits it, so the helper could not resolve until the request settled —
  * which is exactly what the caller has yet to release. That deadlocks.
  */
-const startRequest = async (call: () => Promise<void>): Promise<{ pending: Promise<void> }> => {
-  let pending: Promise<void> = Promise.resolve()
+const startRequest = async (
+  call: () => Promise<ResetRequestOutcome>,
+): Promise<{ pending: Promise<ResetRequestOutcome> }> => {
+  let pending: Promise<ResetRequestOutcome> = Promise.resolve({ kind: 'rejected' })
   await act(() => {
     pending = call()
   })
@@ -55,7 +59,6 @@ const startRequest = async (call: () => Promise<void>): Promise<{ pending: Promi
 
 beforeEach(() => {
   mockRequest.mockReset()
-  useFeedbackStore.getState().dismiss()
 })
 
 describe('usePasswordReset', () => {
@@ -95,42 +98,44 @@ describe('usePasswordReset', () => {
     expect(mockRequest).toHaveBeenCalledTimes(1)
   })
 
-  it('confirms through the toast, not only an inline line', async () => {
+  it('reports the trimmed address, which the confirmation then names', async () => {
     mockRequest.mockResolvedValue({ kind: 'ok' })
 
     const { result } = await renderHook(() => usePasswordReset())
+    let outcome: ResetRequestOutcome = { kind: 'rejected' }
     await act(async () => {
-      await result.current.request('  someone@example.com  ')
+      outcome = await result.current.request('  someone@example.com  ')
     })
 
-    // Trimmed, and deliberately non-committal about whether the account exists.
-    expect(useFeedbackStore.getState().current?.message).toBe(
-      'If someone@example.com has an account, a reset link is on its way.',
-    )
+    // Copied addresses drag whitespace along; the confirmation must not show it.
+    expect(outcome).toEqual({ kind: 'sent', email: 'someone@example.com' })
     expect(result.current.error).toBeNull()
   })
 
-  it('asks for an email instead of calling Base44 with an empty one', async () => {
+  it('rejects an address that is not one, without calling Base44', async () => {
     const { result } = await renderHook(() => usePasswordReset())
+    let outcome: ResetRequestOutcome = { kind: 'sent', email: '' }
     await act(async () => {
-      await result.current.request('   ')
+      outcome = await result.current.request('   ')
     })
 
     expect(mockRequest).not.toHaveBeenCalled()
-    expect(result.current.error).toBe('Enter your email address first, then tap Forgot password.')
-    expect(useFeedbackStore.getState().current).toBeNull()
+    expect(outcome.kind).toBe('rejected')
+    expect(result.current.error).toBe('Enter the email address you signed up with.')
   })
 
-  it('surfaces a transport failure inline and shows no success toast', async () => {
+  it('stays on the form when the request fails', async () => {
     mockRequest.mockResolvedValue({ kind: 'error', message: 'Could not send a reset email.' })
 
     const { result } = await renderHook(() => usePasswordReset())
+    let outcome: ResetRequestOutcome = { kind: 'sent', email: '' }
     await act(async () => {
-      await result.current.request('someone@example.com')
+      outcome = await result.current.request('someone@example.com')
     })
 
+    // A failure must not advance to "check your email" — there is nothing to check.
+    expect(outcome.kind).toBe('rejected')
     expect(result.current.error).toBe('Could not send a reset email.')
-    expect(useFeedbackStore.getState().current).toBeNull()
 
     await act(() => {
       result.current.clear()

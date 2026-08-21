@@ -1,33 +1,55 @@
 import { View } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useRoute } from '@react-navigation/native'
+import type { RouteProp } from '@react-navigation/native'
 
 import { Button } from '@/components/Button'
 import { FormError } from '@/components/FormError/FormError'
 import { Text } from '@/components/Text'
 import { TextField } from '@/components/TextField'
 import { useTheme } from '@/hooks/useTheme'
-import type { AuthNavigation } from '@/navigation/types'
+import type { AuthNavigation, AuthStackParamList } from '@/navigation/types'
 import { useCompleteReset } from '../hooks/useCompleteReset'
 import { AuthFormLayout } from '../components/AuthFormLayout'
 
 /**
  * Set a new password from the token in the reset email.
  *
- * This screen is what turned "Forgot password" from a dead end into a flow:
- * `resetPassword` existed in the SDK with nothing calling it, so a user could
- * request the email and then had nowhere to go.
+ * Reached by **deep link, not by navigation** — tapping the emailed link on the phone
+ * opens the app here with the token already in the route. Nothing in the app links to
+ * this screen, which is why it has no "back to sign in" path other than finishing.
  *
- * Native by requirement — the token is consumed in the app and the user never
- * leaves it.
- *
- * On success it routes to sign-in rather than logging straight in: Base44
- * returns no session from a reset, and asking someone to use the password they
- * just chose confirms it works.
+ * On success it routes to sign-in rather than logging straight in: Base44 returns no
+ * session from a reset, and using the new password once confirms it took.
  */
 export const ResetPasswordScreen = () => {
   const theme = useTheme()
   const navigation = useNavigation<AuthNavigation>()
-  const form = useCompleteReset(() => navigation.navigate('EmailSignIn'))
+  const route = useRoute<RouteProp<AuthStackParamList, 'ResetPassword'>>()
+  const token = route.params?.token ?? ''
+  const form = useCompleteReset(token, () => navigation.navigate('EmailSignIn'))
+
+  // A link that arrives without a token is not recoverable here: only a fresh email
+  // carries a new one, and pretending otherwise wastes the user's time on a form
+  // that cannot succeed.
+  if (!token) {
+    return (
+      <AuthFormLayout>
+        <Text variant="title">Link incomplete</Text>
+        <Text
+          variant="body"
+          tone="secondary"
+          style={{ marginTop: theme.spacing.sm, marginBottom: theme.spacing.xxl }}
+        >
+          That link is missing its reset code. Request a new one and open the latest email.
+        </Text>
+
+        <Button
+          label="Request a new link"
+          onPress={() => navigation.navigate('ForgotPassword', undefined)}
+        />
+      </AuthFormLayout>
+    )
+  }
 
   return (
     <AuthFormLayout>
@@ -37,23 +59,8 @@ export const ResetPasswordScreen = () => {
         tone="secondary"
         style={{ marginTop: theme.spacing.sm, marginBottom: theme.spacing.xxl }}
       >
-        Paste the link from the reset email, then choose a new password.
+        Then sign in with it.
       </Text>
-
-      <TextField
-        label="Reset link or code"
-        showLabel
-        icon="link-outline"
-        placeholder="https://…?token=… or the code itself"
-        value={form.link}
-        onChangeText={form.setLink}
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="next"
-        autoFocus
-      />
-
-      <View style={{ height: theme.spacing.lg }} />
 
       <TextField
         label="New password"
@@ -66,6 +73,7 @@ export const ResetPasswordScreen = () => {
         autoComplete="new-password"
         textContentType="newPassword"
         returnKeyType="next"
+        autoFocus
       />
 
       <View style={{ marginTop: theme.spacing.lg }}>
@@ -86,13 +94,11 @@ export const ResetPasswordScreen = () => {
 
       <FormError message={form.error} />
 
-      <View style={{ marginTop: theme.spacing.xxl, gap: theme.spacing.md }}>
-        <Button label="Set new password" onPress={() => void form.submit()} loading={form.busy} />
+      <View style={{ marginTop: theme.spacing.xxl }}>
         <Button
-          label="Back to sign in"
-          variant="ghost"
-          onPress={() => navigation.navigate('EmailSignIn')}
-          disabled={form.busy}
+          label="Set new password"
+          onPress={() => void form.submit()}
+          loading={form.busy}
         />
       </View>
     </AuthFormLayout>

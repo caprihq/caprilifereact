@@ -131,8 +131,67 @@ describe('bundle identity', () => {
     expect(infoPlist()).toContain('NSSpeechRecognitionUsageDescription')
   })
 
+  it('declares the photo-library string App Store review demands', () => {
+    // ITMS-90683 rejected an upload over this. React Native's image loader
+    // references the Photos APIs to support `ph://` URLs, and Apple's static
+    // analysis requires a purpose string for the reference alone — the app has no
+    // photo picker and never reads the library. Removing this key does not remove a
+    // feature, it fails the next upload.
+    expect(infoPlist()).toContain('NSPhotoLibraryUsageDescription')
+  })
+
   it('registers the icon font, without which every glyph renders blank', () => {
     expect(infoPlist()).toContain('Ionicons.ttf')
+  })
+})
+
+describe('the password-reset deep link', () => {
+  /**
+   * Base44 emails a link to its hosted client, and the app claims it so the reset
+   * finishes without leaving CAPRI. That needs three declarations to agree, in three
+   * languages, none of which can import the others:
+   *
+   *   - `navigation/linking.ts`  — the route the URL maps to
+   *   - `Info.plist` entitlements — the associated domain, for iOS
+   *   - `AndroidManifest.xml`    — an autoVerify intent filter, for Android
+   *
+   * Drop any one and the link silently opens a browser instead.
+   */
+  const linkingSource = () => read('src/navigation/linking.ts')
+
+  it('routes the path Base44 actually emails', () => {
+    // The web client's route is `/reset-password`; a mismatch here means the link
+    // opens the app and lands nowhere.
+    expect(linkingSource()).toContain("ResetPassword: 'reset-password'")
+  })
+
+  it('claims only that path, not the whole host', () => {
+    // The association file offers `paths: ["*"]`. Taking all of it would intercept
+    // the web client's OAuth bounce page and break provider sign-in.
+    const manifest = read('android/app/src/main/AndroidManifest.xml')
+    expect(manifest).toContain('android:pathPrefix="/reset-password"')
+    expect(manifest).not.toContain('android:pathPattern=".*"')
+  })
+
+  it('forwards links to JS on iOS, which nothing else does', () => {
+    // The entitlement gets the OS to open the app; these two AppDelegate hooks are
+    // what hand the URL to React Native. Without them a Universal Link opens the app
+    // onto whatever screen it was already showing and nothing happens — which looks
+    // identical to the entitlement being wrong.
+    const appDelegate = read('ios/CAPRI/AppDelegate.swift')
+
+    expect(appDelegate).toContain('RCTLinkingManager.application(app, open: url')
+    expect(appDelegate).toContain('continue userActivity: NSUserActivity')
+  })
+
+  it('declares the domain on both platforms, matching the backend host', () => {
+    const host = new URL(base44Config.appBaseUrl).host
+
+    expect(read('android/app/src/main/AndroidManifest.xml')).toContain(`android:host="${host}"`)
+    expect(read('android/app/src/main/AndroidManifest.xml')).toContain('android:autoVerify="true"')
+    for (const file of ['ios/CAPRI/CAPRI.entitlements', 'ios/CAPRI/CAPRIRelease.entitlements']) {
+      expect(read(file)).toContain(`applinks:${host}`)
+    }
   })
 })
 
@@ -227,7 +286,7 @@ describe('shipping as the next version of the live app', () => {
 
   it('outranks the build already on the App Store', () => {
     expect(project()).toContain('MARKETING_VERSION = 3.0.0;')
-    expect(project()).toContain('CURRENT_PROJECT_VERSION = 17;')
+    expect(project()).toContain('CURRENT_PROJECT_VERSION = 23;')
     // The React Native template defaults would be rejected on upload.
     expect(project()).not.toContain('MARKETING_VERSION = 1.0;')
     expect(project()).not.toContain('CURRENT_PROJECT_VERSION = 1;')
@@ -235,7 +294,7 @@ describe('shipping as the next version of the live app', () => {
 
   it('keeps Android in step, so the two cannot drift apart', () => {
     const gradle = read('android/app/build.gradle')
-    expect(gradle).toContain('versionCode 17')
+    expect(gradle).toContain('versionCode 23')
     expect(gradle).toContain('versionName "3.0.0"')
   })
 

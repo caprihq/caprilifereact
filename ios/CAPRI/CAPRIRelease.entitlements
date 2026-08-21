@@ -25,6 +25,15 @@
 	<!-- Production APNs. The Debug entitlements use `development`; the value has
 	     to match the provisioning profile, so the two configurations carry
 	     separate files rather than one file that is wrong half the time. -->
+	<!-- Universal Links. Base44 serves
+	     /.well-known/apple-app-site-association for this bundle id, so links to the
+	     web client can open the app instead of Safari — which is how a password-reset
+	     email finishes inside CAPRI. Only the reset path is routed; see
+	     navigation/linking.ts. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:capriforlifev1.base44.app</string>
+	</array>
 	<key>aps-environment</key>
 	<string>production</string>
 </dict>

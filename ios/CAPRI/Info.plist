@@ -41,6 +41,20 @@
 	<string>CAPRI needs microphone access so you can capture tasks by voice.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>CAPRI uses speech recognition to turn what you say into tasks on your list.</string>
+	<!--
+	  Required by App Store review, not by the app.
+
+	  Upload was rejected with ITMS-90683: React Native's own image loader
+	  (React.xcframework) references the Photos APIs so that it can display
+	  `ph://` asset URLs. Apple's static analysis sees the reference and demands a
+	  purpose string whether or not the app ever calls it. CAPRI has no photo
+	  picker and no code path that reads the library, so the string says exactly
+	  that rather than inventing a feature.
+
+	  Deleting this key does not remove a feature; it fails the next upload.
+	-->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>CAPRI does not use your photos. iOS asks for this because a system image component included with the app can display library images, and CAPRI never reads your library.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

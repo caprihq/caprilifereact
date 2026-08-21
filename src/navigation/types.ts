@@ -15,13 +15,21 @@ export type AuthStackParamList = {
     expiresInMinutes?: number | undefined
     needsCode?: boolean | undefined
   }
-  /** Token comes from the reset email, via a deep link. */
   /**
-   * No params: the token cannot arrive by deep link — Base44's reset email points
-   * at its own hosted page on a domain we cannot claim — so the screen collects it
-   * from a paste instead.
+   * Requesting the reset email. The address is carried over from the sign-in form
+   * when there is one, so nobody types it twice.
+   *
+   * Setting the new password happens on Base44's own page, which is where its email
+   * links to — a domain we cannot claim for deep links, so there is no in-app screen
+   * for it.
    */
-  ResetPassword: undefined
+  ForgotPassword: { email?: string } | undefined
+  /**
+   * Reached only by deep link, with the token from the reset email. Optional because
+   * a malformed link can arrive without one, and the screen says so rather than
+   * offering a form that cannot succeed.
+   */
+  ResetPassword: { token?: string } | undefined
 }
 
 export type AppTabParamList = {

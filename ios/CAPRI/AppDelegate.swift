@@ -31,6 +31,39 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     return true
   }
+
+  /// Custom-scheme links — `capri://…`.
+  ///
+  /// Without this the system launches the app and the URL is dropped on the floor:
+  /// `Linking.getInitialURL()` returns nil and React Navigation never routes. Note
+  /// that provider sign-in does *not* depend on it — `ASWebAuthenticationSession`
+  /// captures its own callback — which is why the app got this far without it.
+  func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    RCTLinkingManager.application(app, open: url, options: options)
+  }
+
+  /// Universal Links — `https://capriforlifev1.base44.app/reset-password?token=…`.
+  ///
+  /// These arrive as a user activity rather than a URL open, so they need their own
+  /// hook. Base44 serves the association file for this bundle id, and the
+  /// entitlement claims the domain; this is the last of the three, and the one that
+  /// hands the link to JS. Missing it looks exactly like a broken deep link: the app
+  /// opens on whatever screen it was on and nothing happens.
+  func application(
+    _ application: UIApplication,
+    continue userActivity: NSUserActivity,
+    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+  ) -> Bool {
+    RCTLinkingManager.application(
+      application,
+      continue: userActivity,
+      restorationHandler: restorationHandler
+    )
+  }
 }
 
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {

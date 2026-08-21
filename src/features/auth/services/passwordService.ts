@@ -3,12 +3,14 @@ import { describeError, diag, diagFailure, wire } from '@/utils'
 import { authErrorMessage } from '../logic/authErrors'
 
 /**
- * Password operations: request a reset, complete one, and change a password
- * while signed in.
+ * Password operations: request a reset email, and change a password while signed in.
  *
- * `resetPassword` and `changePassword` had existed in the SDK all along with
- * **nothing calling them**. A user could request a reset email and then had
- * nowhere to enter a new password — the flow simply dead-ended.
+ * Completing a reset is here again. It was dropped on the belief that the token
+ * could never reach the app — the email links to `capriforlifev1.base44.app`, which
+ * looked unclaimable. It is not: Base44 already serves
+ * `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association` for
+ * this exact bundle id, so the app can claim those links and receive the token
+ * directly. See `navigation/linking.ts`.
  *
  * Split from `emailAuth.ts`, which was already seven functions and close to the
  * 200-line limit (§3.2).
@@ -21,10 +23,19 @@ export type PasswordResult =
 /**
  * Ask Base44 to email a reset link.
  *
- * Always reports success. Telling the caller that an address is unknown lets
- * anyone probe which emails are registered, so the screen says "if that address
- * has an account…" and means it. Genuine transport failures are still surfaced,
- * because those the user can act on by retrying.
+ * **Cannot report whether the account exists**, and that is the server's decision,
+ * not a hedge invented here. `/auth/reset-password-request` answers identically for
+ * a registered address and a made-up one:
+ *
+ *     200 {"message":"If an account exists with this email, you will receive
+ *          a password reset link."}
+ *
+ * Verified against the live backend with both. Anything more definite on screen
+ * would be a guess — and confirming that an address is registered is exactly what
+ * lets someone test a list of emails against the service.
+ *
+ * Genuine transport failures are still surfaced, because those a user can act on
+ * by retrying.
  */
 export const requestPasswordReset = async (email: string): Promise<PasswordResult> => {
   diag('password:requestReset:start', { email })
@@ -52,19 +63,19 @@ export const requestPasswordReset = async (email: string): Promise<PasswordResul
 }
 
 /**
- * Complete a reset with the token from the email.
+ * Complete a reset with the token from the email link.
  *
- * Base44 signature: `resetPassword({ resetToken, newPassword })`.
+ * Base44 signature: `resetPassword({ resetToken, newPassword })`. It answers every
+ * rejection with the same 400 — "Invalid or expired reset token" — whether the token
+ * is wrong, already spent, superseded by a newer request, or genuinely old, so the
+ * message here has to cover all four without pretending to know which.
  */
 export const completePasswordReset = async (
   resetToken: string,
   newPassword: string,
 ): Promise<PasswordResult> => {
   diag('password:completeReset:start', { tokenLength: resetToken.length })
-  wire('resetPassword REQUEST', {
-    endpoint: 'auth.resetPassword',
-    body: { resetToken, newPassword },
-  })
+  wire('resetPassword REQUEST', { endpoint: 'auth.resetPassword', body: { resetToken, newPassword } })
   try {
     const response: unknown = await base44.auth.resetPassword({ resetToken, newPassword })
     wire('resetPassword RESPONSE', response)
@@ -72,11 +83,12 @@ export const completePasswordReset = async (
   } catch (error) {
     wire('resetPassword FAILED', { error: describeError(error) })
     diagFailure('password:completeReset', error)
-    // 410/404 here almost always means the link was already used or has aged
-    // out; authErrorMessage words both as "expired, request a new one".
     return {
       kind: 'error',
-      message: authErrorMessage(error, 'Could not reset your password. Request a new link.'),
+      message: authErrorMessage(
+        error,
+        'That link is no longer valid. Reset links work once, and a newer request cancels the last one.',
+      ),
     }
   }
 }

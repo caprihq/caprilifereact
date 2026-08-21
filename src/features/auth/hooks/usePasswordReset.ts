@@ -1,25 +1,27 @@
 import { useCallback, useRef, useState } from 'react'
 
-import { useFeedback } from '@/hooks/useFeedback'
 import { requestPasswordReset } from '../services/passwordService'
+
+/** What the caller needs to know: move to the confirmation, or stay and fix something. */
+export type ResetRequestOutcome =
+  | { readonly kind: 'sent'; readonly email: string }
+  | { readonly kind: 'rejected' }
 
 /**
  * "Forgot password?" — request a reset email.
  *
- * `requestPasswordReset` was written and never called, so a user who forgot
- * their password had no route through the app at all.
+ * **Reports its outcome instead of raising a toast.** The toast was the wrong shape
+ * for this: it appeared over a form that looked exactly as it had a moment earlier,
+ * so the only evidence that anything had happened slid away after a few seconds. The
+ * screen now switches to a "check your email" state, which needs to know whether the
+ * request actually went through.
  *
- * **Owns its own `busy` flag.** The screen previously reused the sign-in flag, so
- * the button neither disabled nor showed a spinner while the request was in
- * flight — and a Base44 round trip has measured 4–21s on an emulator. Twenty
- * seconds of nothing changing reads as a broken button, and the natural response
- * is to tap it again.
- *
- * Confirmation goes through the toast rather than a small inline line, which was
- * quiet enough to miss with the keyboard up.
+ * **Owns its own `busy` flag.** The sign-in screen used to lend it one, so the button
+ * neither disabled nor span while the request was in flight — and a Base44 round trip
+ * has measured 4–21s on an emulator. Twenty seconds of nothing changing reads as a
+ * broken button, and the natural response is to tap it again.
  */
 export const usePasswordReset = () => {
-  const { show } = useFeedback()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // The guard reads a ref, not `busy`. Depending on the state would rebuild
@@ -27,36 +29,30 @@ export const usePasswordReset = () => {
   // still see `busy === false` and fire a second request.
   const inFlight = useRef(false)
 
-  const request = useCallback(
-    async (email: string) => {
-      if (inFlight.current) return
+  const request = useCallback(async (email: string): Promise<ResetRequestOutcome> => {
+    if (inFlight.current) return { kind: 'rejected' }
 
-      const address = email.trim()
-      if (!address) {
-        setError('Enter your email address first, then tap Forgot password.')
-        return
-      }
+    const address = email.trim()
+    if (!address.includes('@')) {
+      setError('Enter the email address you signed up with.')
+      return { kind: 'rejected' }
+    }
 
-      inFlight.current = true
-      setBusy(true)
-      setError(null)
+    inFlight.current = true
+    setBusy(true)
+    setError(null)
 
-      const result = await requestPasswordReset(address)
-      inFlight.current = false
-      setBusy(false)
+    const result = await requestPasswordReset(address)
+    inFlight.current = false
+    setBusy(false)
 
-      if (result.kind === 'error') {
-        setError(result.message)
-        return
-      }
+    if (result.kind === 'error') {
+      setError(result.message)
+      return { kind: 'rejected' }
+    }
 
-      // Deliberately non-committal about whether the address exists: confirming
-      // it would let anyone probe which emails are registered. The cost is that
-      // a typo looks identical to a successful send.
-      show({ message: `If ${address} has an account, a reset link is on its way.` })
-    },
-    [show],
-  )
+    return { kind: 'sent', email: address }
+  }, [])
 
   return { request, busy, error, clear: useCallback(() => setError(null), []) }
 }

@@ -7,6 +7,7 @@ import { ErrorView } from '@/components/ErrorView'
 import { LoadingView } from '@/components/LoadingView'
 import { useAuth } from '@/features/auth'
 import { useTheme } from '@/hooks/useTheme'
+import { linking } from './linking'
 import { buildNavigationTheme } from './navigationTheme'
 import { AuthStack } from './stacks/AuthStack'
 import type { RootStackParamList } from './types'
@@ -71,7 +72,7 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer theme={buildNavigationTheme(theme)}>
+    <NavigationContainer theme={buildNavigationTheme(theme)} linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {status === 'authenticated' ? (
           <Stack.Screen name="App">

@@ -82,22 +82,14 @@ export const EmailSignInScreen = () => {
           onPress={() => navigation.navigate('EmailSignUp')}
           disabled={form.busy}
         />
+        {/* Goes to a screen with its own address field rather than mailing whatever
+            happens to be in the form above — which, empty, produced a validation
+            error instead of a way forward. */}
         <Button
           label="Forgot password?"
           variant="ghost"
-          onPress={() => void reset.request(form.email)}
-          loading={reset.busy}
-          disabled={form.busy || reset.busy}
-        />
-        {/* The other half of the reset: the email's link opens Base44's own web
-            page, so the token has to be brought back in by hand. Without this the
-            request was a dead end — the mail arrived and the app had no way to
-            use it. */}
-        <Button
-          label="I have a reset link"
-          variant="ghost"
-          onPress={() => navigation.navigate('ResetPassword')}
-          disabled={form.busy || reset.busy}
+          onPress={() => navigation.navigate('ForgotPassword', { email: form.email })}
+          disabled={form.busy}
         />
       </View>
     </AuthFormLayout>

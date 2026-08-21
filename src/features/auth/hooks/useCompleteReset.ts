@@ -1,22 +1,19 @@
 import { useCallback, useState } from 'react'
 
-import { extractResetToken } from '../logic/resetToken'
 import { validateNewPassword } from '../logic/passwordPolicy'
 import { completePasswordReset } from '../services/passwordService'
 
 /**
- * Form state and submission for finishing a password reset.
+ * Form state for setting a new password from a reset link.
  *
  * Extracted so the screen stays inside the 80-line body limit (§3.2), matching
- * `useChangePassword` — the two flows are siblings and should read alike.
+ * `useChangePassword` — the two are siblings and should read alike.
  *
- * The order matters and is stated once here: parse the pasted link **first**. A
- * mistyped password is worth reporting, but not before telling someone their paste
- * was the wrong thing entirely — otherwise they fix the password, submit again, and
- * only then learn the real problem.
+ * The token is not validated here beyond being present. Only Base44 can say whether
+ * it is still good, and it will not say *why* it is not: wrong, already spent,
+ * superseded, and aged out all come back as the same 400.
  */
-export const useCompleteReset = (onDone: () => void) => {
-  const [link, setLink] = useState('')
+export const useCompleteReset = (token: string, onDone: () => void) => {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -24,12 +21,6 @@ export const useCompleteReset = (onDone: () => void) => {
 
   const submit = useCallback(async () => {
     if (busy) return
-
-    const token = extractResetToken(link)
-    if (token === null) {
-      setError('Paste the whole link from the reset email, or just the code in it.')
-      return
-    }
 
     const check = validateNewPassword(password, confirm)
     if (check.kind === 'invalid') {
@@ -51,7 +42,7 @@ export const useCompleteReset = (onDone: () => void) => {
     // Deliberately not signed in: Base44 returns no session from a reset, and using
     // the new password once proves it took.
     onDone()
-  }, [busy, confirm, link, onDone, password])
+  }, [busy, confirm, onDone, password, token])
 
-  return { link, setLink, password, setPassword, confirm, setConfirm, error, busy, submit }
+  return { password, setPassword, confirm, setConfirm, error, busy, submit }
 }

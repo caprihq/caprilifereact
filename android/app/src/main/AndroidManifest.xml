@@ -68,6 +68,28 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="capri" />
         </intent-filter>
+
+        <!-- App Links for the password-reset email.
+             Base44 serves /.well-known/assetlinks.json for this applicationId, so
+             `autoVerify` succeeds and the emailed link opens the app rather than a
+             browser — letting the reset finish inside CAPRI.
+
+             Scoped to /reset-password on purpose. The association file offers every
+             path, and claiming all of them would intercept the web client's own
+             pages, including the OAuth bounce that sign-in depends on.
+
+             Verification matches the release signing certificate named in that file,
+             so a debug build will not verify: test this with a release build, or
+             accept the browser opening in debug. -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data
+                android:scheme="https"
+                android:host="capriforlifev1.base44.app"
+                android:pathPrefix="/reset-password" />
+        </intent-filter>
       </activity>
     </application>
 </manifest>

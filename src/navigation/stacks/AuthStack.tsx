@@ -5,6 +5,7 @@ import {
   EmailSignInScreen,
   EmailSignUpScreen,
   LoginScreen,
+  ForgotPasswordScreen,
   ResetPasswordScreen,
 } from '@/features/auth'
 import { useTheme } from '@/hooks/useTheme'
@@ -44,6 +45,11 @@ export const AuthStack = () => {
       <Stack.Screen
         name="EmailSignUp"
         component={EmailSignUpScreen}
+        options={{ headerShown: true, title: '', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="ForgotPassword"
+        component={ForgotPasswordScreen}
         options={{ headerShown: true, title: '', headerBackTitle: 'Back' }}
       />
       <Stack.Screen
