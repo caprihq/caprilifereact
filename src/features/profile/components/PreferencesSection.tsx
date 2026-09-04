@@ -4,6 +4,8 @@ import { View } from 'react-native'
 import { Card } from '@/components/Card'
 import { Picker } from '@/components/Picker'
 import { Row } from '@/components/Row'
+import { HOURS, hourLabel } from '../logic/hours'
+import { zoneLabel, zoneOptions } from '../logic/timeZones'
 import type { EditableProfile } from '../services/useUserProfile'
 import type { User } from '@/types/entities'
 
@@ -13,16 +15,7 @@ import type { User } from '@/types/entities'
  * noticeably worse plan.
  */
 
-type Sheet = 'start' | 'end' | 'duration' | 'switching' | null
-
-const HOURS = Array.from({ length: 24 }, (_, hour) => {
-  const value = `${String(hour).padStart(2, '0')}:00`
-  const display = new Date(2026, 0, 1, hour).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    hour12: true,
-  })
-  return { value, label: display }
-})
+type Sheet = 'start' | 'end' | 'duration' | 'switching' | 'timezone' | null
 
 const DURATIONS = [
   { value: 'quick', label: 'Quick wins' },
@@ -35,9 +28,6 @@ const SWITCHING = [
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High — I switch easily' },
 ] as const
-
-const hourLabel = (value: string | undefined) =>
-  HOURS.find((hour) => hour.value === value)?.label ?? 'Not set'
 
 const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1)
 
@@ -56,6 +46,13 @@ export const PreferencesSection = ({ user, onChange }: PreferencesSectionProps) 
   const endsAt = user?.work_hours_end
   const duration = user?.preferred_task_duration ?? 'mixed'
   const switching = user?.context_switch_tolerance ?? 'medium'
+  /**
+   * Every date rule in the app takes a zone, and until now it could only be read —
+   * from the account or the device. Someone who travels, or whose device zone is
+   * simply wrong, had no way to correct CAPRI's idea of "today".
+   */
+  const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const timezone = user?.timezone ?? deviceZone
 
   return (
     <View>
@@ -79,42 +76,88 @@ export const PreferencesSection = ({ user, onChange }: PreferencesSectionProps) 
           label="Context switching"
           value={titleCase(switching)}
           onPress={() => setSheet('switching')}
+        />
+        <Row
+          label="Time zone"
+          value={zoneLabel(timezone)}
+          onPress={() => setSheet('timezone')}
           last
         />
       </Card>
 
-      <Picker
-        open={sheet === 'start'}
-        title="Work starts"
-        value={startsAt}
-        options={HOURS}
-        onSelect={(work_hours_start) => onChange({ work_hours_start })}
+      <PreferencePickers
+        sheet={sheet}
         onClose={close}
-      />
-      <Picker
-        open={sheet === 'end'}
-        title="Work ends"
-        value={endsAt}
-        options={HOURS}
-        onSelect={(work_hours_end) => onChange({ work_hours_end })}
-        onClose={close}
-      />
-      <Picker
-        open={sheet === 'duration'}
-        title="Preferred task length"
-        value={duration}
-        options={DURATIONS}
-        onSelect={(preferred_task_duration) => onChange({ preferred_task_duration })}
-        onClose={close}
-      />
-      <Picker
-        open={sheet === 'switching'}
-        title="Context switching"
-        value={switching}
-        options={SWITCHING}
-        onSelect={(context_switch_tolerance) => onChange({ context_switch_tolerance })}
-        onClose={close}
+        onChange={onChange}
+        values={{ startsAt, endsAt, duration, switching, timezone, deviceZone }}
+        savedZone={user?.timezone}
       />
     </View>
   )
 }
+
+/** Every preference's picker. Split out to keep the row list readable (§3.2). */
+const PreferencePickers = ({
+  sheet,
+  onClose,
+  onChange,
+  values,
+  savedZone,
+}: {
+  readonly sheet: Sheet
+  readonly onClose: () => void
+  readonly onChange: (changes: Partial<EditableProfile>) => void
+  readonly values: {
+    readonly startsAt: string | undefined
+    readonly endsAt: string | undefined
+    readonly duration: 'quick' | 'mixed' | 'long'
+    readonly switching: 'low' | 'medium' | 'high'
+    readonly timezone: string
+    readonly deviceZone: string
+  }
+  readonly savedZone: string | undefined
+}) => (
+  <>
+      <Picker
+        open={sheet === 'timezone'}
+        title="Time zone"
+        value={values.timezone}
+        options={zoneOptions(values.deviceZone, savedZone)}
+        onSelect={(zone) => onChange({ timezone: zone })}
+        onClose={onClose}
+      />
+      <Picker
+        open={sheet === 'start'}
+        title="Work starts"
+        value={values.startsAt}
+        options={HOURS}
+        onSelect={(work_hours_start) => onChange({ work_hours_start })}
+        onClose={onClose}
+      />
+      <Picker
+        open={sheet === 'end'}
+        title="Work ends"
+        value={values.endsAt}
+        options={HOURS}
+        onSelect={(work_hours_end) => onChange({ work_hours_end })}
+        onClose={onClose}
+      />
+      <Picker
+        open={sheet === 'duration'}
+        title="Preferred task length"
+        value={values.duration}
+        options={DURATIONS}
+        onSelect={(preferred_task_duration) => onChange({ preferred_task_duration })}
+        onClose={onClose}
+      />
+      <Picker
+        open={sheet === 'switching'}
+        title="Context switching"
+        value={values.switching}
+        options={SWITCHING}
+        onSelect={(context_switch_tolerance) => onChange({ context_switch_tolerance })}
+        onClose={onClose}
+      />
+  </>
+)
+

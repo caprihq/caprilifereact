@@ -1,7 +1,7 @@
 import InAppBrowser from 'react-native-inappbrowser-reborn'
 
 import { base44 } from '@/services/api'
-import { logWarn } from '@/utils'
+import { friendlyMessage, logWarn } from '@/utils'
 
 /**
  * Linking the user's Google Calendar.
@@ -47,11 +47,14 @@ export const connectCalendar = async (): Promise<ConnectOutcome> => {
   try {
     const url: unknown = await base44.connectors.connectAppUser(GOOGLE_CALENDAR_CONNECTOR_ID)
     if (typeof url !== 'string' || !url) {
-      return { kind: 'failed', message: 'CAPRI could not start the calendar connection.' }
+      return { kind: 'failed', message: "Couldn't start the calendar connection. Please try again." }
     }
 
     if (!(await InAppBrowser.isAvailable())) {
-      return { kind: 'failed', message: 'No browser is available to complete the connection.' }
+      return {
+        kind: 'failed',
+        message: 'Connecting a calendar needs a browser, and none is available on this device.',
+      }
     }
 
     // Resolves once the user dismisses the browser, however it ended.
@@ -59,9 +62,11 @@ export const connectCalendar = async (): Promise<ConnectOutcome> => {
 
     return { kind: 'finished', state: await checkCalendarConnection() }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Could not connect your calendar.'
     logWarn('[calendar] connect failed', error)
-    return { kind: 'failed', message }
+    return {
+      kind: 'failed',
+      message: friendlyMessage(error, "Couldn't connect your calendar. Please try again."),
+    }
   }
 }
 
@@ -70,8 +75,10 @@ export const disconnectCalendar = async (): Promise<ConnectOutcome> => {
     await base44.connectors.disconnectAppUser(GOOGLE_CALENDAR_CONNECTOR_ID)
     return { kind: 'finished', state: 'disconnected' }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Could not disconnect your calendar.'
     logWarn('[calendar] disconnect failed', error)
-    return { kind: 'failed', message }
+    return {
+      kind: 'failed',
+      message: friendlyMessage(error, "Couldn't disconnect your calendar. Please try again."),
+    }
   }
 }

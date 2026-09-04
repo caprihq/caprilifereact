@@ -2,6 +2,7 @@ import { applyToken, base44, clearQueryCache, isAuthFailure } from '@/services/a
 import { keychainSecretStore } from '@/services/storage'
 import { mmkvPrefStore } from '@/services/storage'
 import { PREF_KEYS, SECRET_KEYS } from '@/services/storage'
+import { authErrorMessage } from '@/features/auth/logic/authErrors'
 import { parseToken } from '@/features/auth/logic/token'
 import { describeError, diag, diagFailure, logWarn, tokenFp, wire } from '@/utils'
 import type { User } from '@/types/entities'
@@ -105,10 +106,13 @@ export const verifyCurrentSession = async (): Promise<AuthResult> => {
       await clearSession('rejected')
       return { kind: 'unauthenticated' }
     }
-    const message =
-      error instanceof Error ? error.message : 'Could not reach CAPRI. Check your connection.'
     diagFailure('auth:verify', error)
-    return { kind: 'error', message }
+    // Never the SDK's own words: this message lands on the launch screen, where
+    // "Request failed with status code 502" reads as a broken app.
+    return {
+      kind: 'error',
+      message: authErrorMessage(error, 'Could not reach CAPRI. Check your connection and try again.'),
+    }
   }
 }
 

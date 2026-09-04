@@ -2,8 +2,6 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { size } from '@/theme'
 import Ionicons from 'react-native-vector-icons/Ionicons'
 
-import { Card } from '@/components/Card'
-import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import type { TimelineItem } from '@/features/commitments/logic/timeline'
 import { SectionLabel } from '@/components/SectionLabel/SectionLabel'
@@ -12,29 +10,25 @@ import { TimelineRow } from './TimelineRow'
 /**
  * "Today's Commitments" — the merged timeline.
  *
- * The web version returned null whenever the list was empty and the calendar
- * was not connected, so the whole section vanished and there was no way to add
- * a commitment from Home. Here the section always renders with an Add action:
- * a commitment is something a user creates, so the entry point has to exist
- * before the first one does.
+ * Only rendered when there is something to show — `TodayCommitmentsSection` returns
+ * null on an empty day, to keep Home about what needs doing. The empty state this
+ * card used to draw is gone with it; the Add action it carried is duplicated in
+ * Home's header, so an empty day is still one tap from a first commitment.
  */
 
 type TodayCommitmentsCardProps = {
+  /** Never empty: the section renders nothing rather than an empty card. */
   readonly items: readonly TimelineItem[]
-  readonly calendarConnected: boolean
   readonly onSelect: (item: TimelineItem) => void
+  /** Long-press asks to remove a commitment. Calendar rows ignore it. */
+  readonly onLongPress: (item: TimelineItem) => void
   readonly onAdd: () => void
 }
 
-const emptyMessage = (calendarConnected: boolean): string =>
-  calendarConnected
-    ? 'Nothing on your calendar today.'
-    : 'Nothing scheduled today. Add a commitment to block out time.'
-
 export const TodayCommitmentsCard = ({
   items,
-  calendarConnected,
   onSelect,
+  onLongPress,
   onAdd,
 }: TodayCommitmentsCardProps) => {
   const theme = useTheme()
@@ -54,30 +48,23 @@ export const TodayCommitmentsCard = ({
         </Pressable>
       </View>
 
-      {items.length === 0 ? (
-        <Card>
-          <Text variant="body" tone="muted" align="center">
-            {emptyMessage(calendarConnected)}
-          </Text>
-        </Card>
-      ) : (
-        <View
-          style={{
-            backgroundColor: theme.colors.surface,
-            borderRadius: theme.radius.xl,
-            overflow: 'hidden',
-          }}
-        >
-          {items.map((item, index) => (
-            <TimelineRow
-              key={item.id}
-              item={item}
-              isLast={index === items.length - 1}
-              onPress={() => onSelect(item)}
-            />
-          ))}
-        </View>
-      )}
+      <View
+        style={{
+          backgroundColor: theme.colors.surface,
+          borderRadius: theme.radius.xl,
+          overflow: 'hidden',
+        }}
+      >
+        {items.map((item, index) => (
+          <TimelineRow
+            key={item.id}
+            item={item}
+            isLast={index === items.length - 1}
+            onPress={() => onSelect(item)}
+            onLongPress={() => onLongPress(item)}
+          />
+        ))}
+      </View>
     </View>
   )
 }

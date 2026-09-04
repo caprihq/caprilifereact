@@ -16,6 +16,7 @@ import { usePlan } from '@/hooks/usePlan'
 import { clearSignals } from '@/features/tasks'
 import type { AppNavigation, AppTabNavigation } from '@/navigation/types'
 import { CalendarIntegrationsSection } from '@/features/commitments'
+import { OnboardingSheet, useOnboarding } from '@/features/onboarding'
 import { useUserProfile } from '../services/useUserProfile'
 import type { EditableProfile } from '../services/useUserProfile'
 import { ProfileIdentity } from '../components/ProfileIdentity'
@@ -26,6 +27,7 @@ export const ProfileScreen = () => {
   const theme = useTheme()
   const wash = useWash()
   const navigation = useNavigation<AppNavigation>()
+  const onboarding = useOnboarding()
   // The same navigator object, typed as the tabs: switching tab is not a stack push.
   const tabs = useNavigation<AppTabNavigation>()
 
@@ -46,7 +48,7 @@ export const ProfileScreen = () => {
   const save = useCallback(
     (changes: Partial<EditableProfile>) => {
       void update(changes).then((ok) => {
-        if (!ok) show({ message: "Couldn't save that change.", isError: true })
+        if (!ok) show({ message: "Couldn't save that change.", tone: 'error' })
       })
     },
     [update, show],
@@ -66,8 +68,9 @@ export const ProfileScreen = () => {
       onPrivacy: () => navigation.navigate('Privacy'),
       onAdmin: () => navigation.navigate('Admin'),
       onChangePassword: () => navigation.navigate('ChangePassword'),
+      onRestartSetup: onboarding.restart,
     }),
-    [navigation],
+    [navigation, onboarding.restart],
   )
 
   if (isLoading) return <LoadingView />
@@ -95,6 +98,8 @@ export const ProfileScreen = () => {
         />
 
         <CalendarIntegrationsSection onUpgrade={routes.onPlan} />
+
+        <OnboardingSheet {...onboarding} onFinish={(answers) => void onboarding.finish(answers)} />
 
         <View style={{ marginTop: theme.spacing.xl }}>
           <Button

@@ -11,10 +11,11 @@ import { SwipeableTaskRow } from './SwipeableTaskRow'
 import { TaskMeta } from './TaskMeta'
 
 /**
- * "Start Here" — the single highest-ranked task.
+ * "Start Here" — the single task CAPRI says to start.
  *
- * The reason line is the human output of the scoring engine; it is what makes
- * the recommendation feel considered rather than arbitrary.
+ * The reason line is what makes the recommendation feel considered rather than
+ * arbitrary. It is the model's own sentence when one has arrived, and the scoring
+ * engine's copy until then — so the card is never blank and never waiting.
  */
 
 type HeroCardProps = {
@@ -22,6 +23,8 @@ type HeroCardProps = {
   readonly nowMs: number
   readonly timeZone: string
   readonly signals?: BehaviouralSignals | undefined
+  /** CAPRI's sentence, when the model has answered. Falls back to the local copy. */
+  readonly reason?: string | undefined
   readonly onOpen: (task: Task) => void
   readonly onComplete: (task: Task) => void
   readonly onDefer: (task: Task) => void
@@ -33,6 +36,7 @@ export const HeroCard = ({
   nowMs,
   timeZone,
   signals,
+  reason,
   onOpen,
   onComplete,
   onDefer,
@@ -61,7 +65,7 @@ export const HeroCard = ({
           {task.title}
         </Text>
         <Text variant="caption" tone="muted" style={{ marginTop: theme.spacing.xs }}>
-          {getTaskReason(task, nowMs, signals)}
+          {reason ?? getTaskReason(task, nowMs, signals)}
         </Text>
         <TaskMeta task={task} nowMs={nowMs} timeZone={timeZone} />
       </SwipeableTaskRow>

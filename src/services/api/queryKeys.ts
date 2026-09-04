@@ -17,5 +17,6 @@ export const queryKeys = {
   tasks: (userEmail: string | null) => ['tasks', userEmail] as const,
   commitments: (userEmail: string | null) => ['commitments', userEmail] as const,
   calendarEvents: () => ['calendarEvents'] as const,
+  focusTimes: (userEmail: string | null) => ['focusTimes', userEmail] as const,
   currentUser: ['user', 'me'] as const,
 } as const

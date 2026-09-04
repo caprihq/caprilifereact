@@ -21,7 +21,11 @@ import { useTasks } from '../services/taskQueries'
 export type TaskFeed = {
   readonly isLoading: boolean
   readonly isError: boolean
-  readonly refetch: () => void
+  /**
+   * Awaitable on purpose: a pull-to-refresh spinner has to stay up until the data
+   * arrives, and a fire-and-forget refetch gives it nothing to wait on.
+   */
+  readonly refetch: () => Promise<void>
   readonly userEmail: string | null
   readonly timeZone: string
   readonly allTasks: readonly Task[]
@@ -29,6 +33,22 @@ export type TaskFeed = {
   readonly heroTask: Task | null
   /** Next best three, excluding the hero. */
   readonly upNext: readonly Task[]
+  /**
+   * The hero and the three behind it, in local ranking order.
+   *
+   * Shown until the model answers, and whenever it cannot. Includes the hero: CAPRI
+   * decides what to start, so the question has to offer it the local engine's pick.
+   */
+  readonly ranked: readonly Task[]
+  /**
+   * Every task CAPRI may recommend — open work, minus scheduled events.
+   *
+   * The recommender is given this rather than `ranked` because a shortlist of four
+   * makes the model's judgement almost decorative: it could only reorder what the
+   * local scorer had already chosen, and the prompt's rule about anything due within
+   * two days could never surface a task the local pass had ranked fifth.
+   */
+  readonly actionable: readonly Task[]
   /** Scheduled or due today, plus the hero if it has no today anchor. */
   readonly todayTasks: readonly Task[]
   /** Fixed to the moment the feed was computed, so all views agree. */
@@ -70,12 +90,16 @@ export const useTaskFeed = (): TaskFeed => {
     return {
       isLoading: tasksQuery.isLoading,
       isError: tasksQuery.isError,
-      refetch: () => void tasksQuery.refetch(),
+      refetch: async () => {
+        await tasksQuery.refetch()
+      },
       userEmail,
       timeZone,
       allTasks: tasks,
       heroTask,
       upNext,
+      ranked: ranked.map((entry) => entry.task),
+      actionable,
       todayTasks: [...todayTasks, ...recommendedExtra],
       nowMs,
     }

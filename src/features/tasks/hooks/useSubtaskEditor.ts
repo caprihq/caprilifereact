@@ -31,7 +31,7 @@ export const useSubtaskEditor = (task: Task, userEmail: string | null) => {
   const nowMs = useNow()
   const { show } = useFeedback()
   const { hasAccess } = usePlan()
-  const { updateTask } = useTaskCrud(userEmail, (message) => show({ message, isError: true }))
+  const { updateTask } = useTaskCrud(userEmail, (message) => show({ message, tone: 'error' }))
   const [generating, setGenerating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -45,18 +45,34 @@ export const useSubtaskEditor = (task: Task, userEmail: string | null) => {
   )
 
   const generate = useCallback(async () => {
+    /**
+     * Gated here, not only in the component that renders the button.
+     *
+     * `locked` below is what the UI reads to show an upgrade prompt instead — but a
+     * flag a caller may ignore is not a gate. Without this check, one screen
+     * rendering the action without consulting `locked` spends a paid model call on a
+     * free user, and nothing in the type system objects.
+     */
+    if (!hasAccess('subtasks')) {
+      show({
+        message: 'Subtasks come with Executive. Upgrade to have CAPRI break a task down.',
+        tone: 'warning',
+      })
+      return
+    }
+
     setGenerating(true)
     try {
       const result = await generateSubtasks(task, userEmail, Date.now())
       if (result.kind === 'error') {
-        show({ message: result.message, isError: true })
+        show({ message: result.message, tone: 'error' })
         return
       }
       write(result.subtasks)
     } finally {
       setGenerating(false)
     }
-  }, [task, userEmail, show, write])
+  }, [hasAccess, task, userEmail, show, write])
 
   const add = useCallback(() => {
     const next = addSubtask(subtasks, NEW_SUBTASK_TITLE, Date.now())

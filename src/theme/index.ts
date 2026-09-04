@@ -18,3 +18,5 @@ export type { AppBreakpoints } from './breakpoints'
  * Colours are NOT exported — those must come from the theme a style receives.
  */
 export { size, letterSpacing, fontSize } from './tokens'
+export { gradient } from './gradient'
+export type { GradientDirection } from './gradient'

@@ -1,35 +1,40 @@
 import { base44 } from '@/services/api'
-import { getPushToken } from '@/services/native'
+import { getPushRegistration } from '@/services/native'
 import { logWarn } from '@/utils'
 
 /**
- * Hand the device's push token to the backend.
+ * Hand this device to the backend so it can be notified.
  *
- * This was the missing half of push: `getPushToken` existed and was never
- * called by anything, and `base44/functions/registerPushToken` was never
- * invoked — so the server never learned any device token and no notification
- * could ever be delivered, on any platform.
+ * The payload describes a **device**, not a user column. Tokens used to be stored
+ * as `User.apns_device_token`, which the User schema never declared — Base44 drops
+ * undeclared fields, so every registration was accepted and stored nothing, and no
+ * notification could ever be delivered. They now go to a `PushDevice` row, which
+ * also means a second phone or an iPad no longer overwrites the first.
  *
- * The backend stores it via `auth.updateMe({ apns_device_token })` and
- * `sendPushNotification` signs its own APNs requests, so this is the whole
- * client side of the contract.
+ * `environment` travels with the token because sandbox and production are separate
+ * token spaces; the backend picks Apple's host per device rather than from one
+ * global setting. See `PushRegistration`.
  *
- * ⚠️ iOS ONLY, by backend design. `registerPushToken` accepts exactly
- * `{ apns_device_token }` and the delivery path talks to Apple directly. Android
- * needs an FCM token and an FCM sender in the backend — a deliberate change in
- * `base44/`, not something to bolt on here (guidelines §0.2).
+ * iOS only for now — `getPushRegistration` returns null on Android, where there is
+ * no APNs. The backend routes by `provider`, so adding Android is an FCM token here
+ * and an `FCMProvider` there, with no change to anything that sends.
  *
  * Never throws: no push is a degraded state, not a failed sign-in.
  */
 export const registerForPush = async (): Promise<boolean> => {
   try {
-    const token = await getPushToken()
-    if (!token) return false
+    const registration = await getPushRegistration()
+    if (!registration) return false
 
-    await base44.functions.invoke('registerPushToken', { apns_device_token: token })
+    await base44.functions.invoke('registerPushToken', {
+      device_token: registration.token,
+      platform: 'ios',
+      provider: 'apns',
+      environment: registration.environment,
+    })
     return true
   } catch (error) {
-    logWarn('[push] could not register the device token', error)
+    logWarn('[push] could not register this device', error)
     return false
   }
 }

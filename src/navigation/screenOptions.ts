@@ -30,4 +30,14 @@ export const sheetOptions: NativeStackNavigationOptions = {
   presentation: 'formSheet',
   sheetGrabberVisible: true,
   gestureEnabled: true,
+  /**
+   * The sheet is as tall as what it holds.
+   *
+   * A fixed detent cannot fit every step of a flow: the same sheet shows a summary
+   * card, a capture screen and a full field editor, and any single height leaves one
+   * of them either cramped or floating in empty space. `fitToContents` asks the
+   * content instead — which only works if the content measures itself, hence the
+   * `fit` prop on `KeyboardAwareScroll`.
+   */
+  sheetAllowedDetents: 'fitToContents',
 }

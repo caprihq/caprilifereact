@@ -5,7 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary'
 import { ThemedStatusBar } from '@/components/ThemedStatusBar/ThemedStatusBar'
-import { Toast } from '@/components/Toast/Toast'
+import { Toast } from '@/components/Toast'
 import { AuthProvider } from '@/features/auth'
 import { runBackendPreflight } from '@/features/auth/services/backendPreflight'
 import { pruneSignals } from '@/features/tasks/logic/signalsStore'

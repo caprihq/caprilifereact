@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { TaskEntity } from '@/services/api'
+import type { Writable } from '@/services/api/entities'
 import { reportError } from '@/services'
 import type { Task } from '@/types/entities'
 import { queryKeys } from '@/services/api'
@@ -14,6 +15,25 @@ import { queryKeys } from '@/services/api'
  */
 
 export type CrudFeedback = (message: string) => void
+
+/**
+ * A patch, where a field may be **cleared**.
+ *
+ * The two absences mean different things to Base44: an omitted field is left alone,
+ * an explicit `null` is unset. `Partial<Task>` can only express the first, so
+ * "remove this task from today" had no way to be typed.
+ */
+export type TaskUpdate = Writable<Task>
+
+/**
+ * The same patch as the cache models it.
+ *
+ * `null` is a wire value meaning "clear"; in the cache a cleared field is simply
+ * absent, which is what every reader already handles. Translating here keeps the
+ * distinction at the boundary instead of spreading nulls through the app.
+ */
+const asCached = (data: TaskUpdate): Partial<Task> =>
+  Object.fromEntries(Object.entries(data).map(([field, value]) => [field, value ?? undefined]))
 
 export const useTaskCrud = (userEmail: string | null, onError?: CrudFeedback) => {
   const queryClient = useQueryClient()
@@ -50,9 +70,12 @@ export const useTaskCrud = (userEmail: string | null, onError?: CrudFeedback) =>
   }, [queryClient, key])
 
   const createTask = useMutation({
-    mutationFn: (data: Partial<Task>) => TaskEntity().create(data),
+    mutationFn: (data: TaskUpdate) => TaskEntity().create(data),
     onMutate: (data) =>
-      optimistic((tasks) => [{ ...data, id: `optimistic-${String(tasks.length)}` } as Task, ...tasks]),
+      optimistic((tasks) => [
+        { ...asCached(data), id: `optimistic-${String(tasks.length)}` } as Task,
+        ...tasks,
+      ]),
     onError: (error, _data, context) => {
       rollback(context, error, 'createTask')
       onError?.("Your task wasn't saved.")
@@ -61,9 +84,9 @@ export const useTaskCrud = (userEmail: string | null, onError?: CrudFeedback) =>
   })
 
   const updateTask = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Task> }) => TaskEntity().update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: TaskUpdate }) => TaskEntity().update(id, data),
     onMutate: ({ id, data }) =>
-      optimistic((tasks) => tasks.map((t) => (t.id === id ? { ...t, ...data } : t))),
+      optimistic((tasks) => tasks.map((t) => (t.id === id ? { ...t, ...asCached(data) } : t))),
     onError: (error, _vars, context) => {
       rollback(context, error, 'updateTask')
       onError?.("Changes weren't saved.")

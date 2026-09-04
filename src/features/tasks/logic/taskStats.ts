@@ -4,6 +4,12 @@ import type { Task } from '@/types/entities'
 /**
  * Headline counts — native port of web/src/components/tasks/QuickStats.jsx.
  *
+ * ⚠️ **Currently unused.** The four count tiles (Pending, In Progress, Due Today,
+ * Critical) were removed from Home at the client's request, and they were this
+ * function's only consumer. It is kept because the counts are the data behind the
+ * gated `analytics` feature and the rules below are non-obvious and tested — but
+ * nothing renders it today, so do not read a call site into existence.
+ *
  * TWO DELIBERATE CHANGES FROM THE WEB VERSION
  *
  * 1. The clock and timezone are arguments. The web version called `new Date()`

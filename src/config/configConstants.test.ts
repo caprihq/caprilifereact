@@ -284,18 +284,39 @@ describe('shipping as the next version of the live app', () => {
    */
   const project = () => read('ios/CAPRI.xcodeproj/project.pbxproj')
 
+  /** The last build of the Capacitor app on the App Store. */
+  const LIVE_BUILD = 16
+
+  /** Every build config has to carry the same number, or one target ships stale. */
+  const iosBuildNumbers = (): readonly number[] =>
+    [...project().matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map((match) => Number(match[1]))
+
+  const androidVersionCode = (): number =>
+    Number(/\n\s*versionCode (\d+)/.exec(read('android/app/build.gradle'))?.[1])
+
+  /**
+   * Asserted as a rule rather than a literal, so releasing does not mean editing a
+   * test. Pinning the exact number made this fail on every bump, which trains
+   * people to update it without reading it — and a guard nobody reads is not a
+   * guard.
+   */
   it('outranks the build already on the App Store', () => {
     expect(project()).toContain('MARKETING_VERSION = 3.0.0;')
-    expect(project()).toContain('CURRENT_PROJECT_VERSION = 23;')
+    expect(iosBuildNumbers().length).toBeGreaterThan(0)
+    for (const build of iosBuildNumbers()) expect(build).toBeGreaterThan(LIVE_BUILD)
+
     // The React Native template defaults would be rejected on upload.
     expect(project()).not.toContain('MARKETING_VERSION = 1.0;')
     expect(project()).not.toContain('CURRENT_PROJECT_VERSION = 1;')
   })
 
+  it('uses one build number across every iOS configuration', () => {
+    expect(new Set(iosBuildNumbers()).size).toBe(1)
+  })
+
   it('keeps Android in step, so the two cannot drift apart', () => {
-    const gradle = read('android/app/build.gradle')
-    expect(gradle).toContain('versionCode 23')
-    expect(gradle).toContain('versionName "3.0.0"')
+    expect(read('android/app/build.gradle')).toContain('versionName "3.0.0"')
+    expect(androidVersionCode()).toBe(iosBuildNumbers()[0])
   })
 
   it('signs with the team that owns the shipped app', () => {

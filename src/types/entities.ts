@@ -88,6 +88,24 @@ export type CalendarEvent = {
 }
 
 /** base44/entities/Commitment.jsonc */
+/**
+ * A recurring block the user reserves for a kind of work.
+ *
+ * Read only, and only to describe the user to the model — the app has no focus-time
+ * editor. `days` holds weekday numbers, 0 = Sunday, matching the web client.
+ */
+export type FocusTime = {
+  readonly id: string
+  readonly label: string
+  readonly start_time: string
+  readonly end_time: string
+  readonly days: readonly number[]
+  readonly priority_level?: 'deep_focus' | 'focused' | 'flexible'
+  readonly energy_level?: 'high' | 'medium' | 'low'
+  readonly task_types?: readonly string[]
+  readonly created_by?: string
+}
+
 export type Commitment = {
   readonly id: string
   readonly title: string
@@ -104,6 +122,8 @@ export const AI_EVENT_TYPES = [
   'ai_reprioritize',
   'ai_start_here_recommendation',
   'ai_up_next_recommendation',
+  'ai_task_parse',
+  'ai_task_prioritise',
 ] as const
 export type AIEventType = (typeof AI_EVENT_TYPES)[number]
 
@@ -147,7 +167,6 @@ export type User = {
   readonly notification_quiet_hours_start?: string
   readonly notification_quiet_hours_end?: string
   // Server-managed. Never write these from the client.
-  readonly apns_device_token?: string
   readonly subscription_last_event_at?: number
   readonly subscription_product_id?: string
   readonly subscription_expires_at?: number

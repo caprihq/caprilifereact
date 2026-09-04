@@ -1,4 +1,4 @@
-import { Switch, View } from 'react-native'
+import { View } from 'react-native'
 
 import { Card } from '@/components/Card'
 import { Row } from '@/components/Row'
@@ -6,6 +6,7 @@ import { useTheme } from '@/hooks/useTheme'
 import type { User } from '@/types/entities'
 import type { EditableProfile } from '../services/useUserProfile'
 import { AppearanceSection } from './AppearanceSection'
+import { NotificationsSection } from './NotificationsSection'
 import { PreferencesSection } from './PreferencesSection'
 import { SectionLabel } from '@/components/SectionLabel/SectionLabel'
 
@@ -20,6 +21,7 @@ export type ProfileRoutes = {
   readonly onPrivacy: () => void
   readonly onAdmin: () => void
   readonly onChangePassword: () => void
+  readonly onRestartSetup: () => void
 }
 
 type ProfileSettingsListProps = {
@@ -49,24 +51,18 @@ export const ProfileSettingsList = ({
 
       <SectionLabel>Preferences</SectionLabel>
       <PreferencesSection user={user} onChange={onChange} />
+      <Card flush>
+        {/* Re-asks the five first-run questions. They write the same fields the rows
+            above edit, so this is a faster path to all of them at once — and the
+            only way to see the wizard after a profile has been answered. */}
+        <Row label="Run setup again" onPress={routes.onRestartSetup} last />
+      </Card>
 
       <SectionLabel>Appearance</SectionLabel>
       <AppearanceSection />
 
       <SectionLabel>Notifications</SectionLabel>
-      <Card flush>
-        <Row
-          label="Allow notifications"
-          last
-          accessory={
-            <Switch
-              value={user?.notification_enabled !== false}
-              onValueChange={(notification_enabled) => onChange({ notification_enabled })}
-              accessibilityLabel="Allow notifications"
-            />
-          }
-        />
-      </Card>
+      <NotificationsSection user={user} onChange={onChange} />
 
       <SectionLabel>Help</SectionLabel>
       <Card flush>
@@ -79,7 +75,7 @@ export const ProfileSettingsList = ({
         <View style={{ gap: theme.spacing.lg }}>
           <SectionLabel>Admin</SectionLabel>
           <Card flush>
-            <Row label="Push console" onPress={routes.onAdmin} last />
+            <Row label="Push notifications" onPress={routes.onAdmin} last />
           </Card>
         </View>
       ) : null}

@@ -16,9 +16,12 @@ import { TASK_FILTERS } from '@/features/tasks/logic/taskFilters'
 
 const LABELS: Record<TaskFilter, string> = {
   all: 'All',
+  today: 'Today',
   critical: 'Critical',
   high: 'High',
-  today: 'Today',
+  medium: 'Medium',
+  low: 'Low',
+  later: 'Later',
   completed: 'Done',
 }
 
@@ -36,6 +39,7 @@ export const FilterBar = ({ active, onChange }: FilterBarProps) => {
     if (filter === 'critical') return theme.colors.danger
     if (filter === 'high') return theme.colors.warning
     if (filter === 'completed') return theme.colors.success
+    if (filter === 'later' || filter === 'low') return theme.colors.textMuted
     return theme.colors.accentInk
   }
 

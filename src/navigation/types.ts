@@ -56,6 +56,10 @@ export type AppTabNavigation = {
  * with drag-to-dismiss, so no bottom-sheet library is needed.
  */
 export type AppStackParamList = {
+  /** The full task list, opened from Home's header. */
+  AllTasks: undefined
+  /** Review CAPRI's proposed times before any of them are written. */
+  AutoSchedule: undefined
   Tabs: undefined
   AddTask: undefined
   AddCommitment: undefined

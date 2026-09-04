@@ -4,6 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 
 import { Row } from './Row'
 import { useTheme } from '@/hooks/useTheme'
+import { pickerAppearance } from './pickerAppearance'
 
 /**
  * A labelled row that opens the platform date or time picker.
@@ -43,6 +44,9 @@ export const DateTimeRow = ({ label, value, mode, onChange }: DateTimeRowProps) 
       {open ? (
         <View style={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md }}>
           <DateTimePicker
+            // Without this the picker follows the phone's appearance, not the
+            // app's: white day numbers on a light sheet.
+            {...pickerAppearance(theme)}
             value={value}
             mode={mode}
             display={Platform.OS === 'ios' ? (mode === 'date' ? 'inline' : 'spinner') : 'default'}

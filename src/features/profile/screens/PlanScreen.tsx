@@ -1,14 +1,20 @@
 import { useCallback, useState } from 'react'
 import { size } from '@/theme'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { Linking, ScrollView, StyleSheet, View } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import type { AppNavigation } from '@/navigation/types'
 
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
+import { SheetHeader } from '@/components/SheetHeader'
 import { Text } from '@/components/Text'
 import { useFeedback } from '@/hooks/useFeedback'
 import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
 import { purchaseProduct, restorePurchases } from '@/services/native'
+import { reportError } from '@/services'
+import { purchaseNotice } from '../logic/purchaseNotice'
 import { usePlan } from '@/hooks/usePlan'
 
 /**
@@ -35,6 +41,13 @@ const BENEFITS = [
 
 export const PlanScreen = () => {
   const theme = useTheme()
+  const navigation = useNavigation<AppNavigation>()
+  /**
+   * This screen covers the status bar — it is pushed or presented full-screen, not
+   * a sheet — and it draws its own header, so nothing else is insetting it. Without
+   * this the close button sits under the clock.
+   */
+  const insets = useSafeAreaInsets()
   const wash = useWash()
   const { show } = useFeedback()
   const { planLabel, isPaid, refreshPlan } = usePlan()
@@ -46,11 +59,13 @@ export const PlanScreen = () => {
       try {
         await action()
         await refreshPlan()
-        show({ message: 'Your plan is up to date.' })
+        show({ message: 'Your plan is up to date.', tone: 'success' })
       } catch (error) {
-        // Cancelling a purchase throws too, which is not an error worth alarm.
-        const message = error instanceof Error ? error.message : 'Purchase did not complete.'
-        show({ message, isError: true })
+        // Cancelling throws as well, and `purchaseNotice` answers that with null:
+        // someone who tapped Cancel does not need to be told the purchase failed.
+        reportError(error, 'purchase')
+        const notice = purchaseNotice(error)
+        if (notice) show(notice)
       } finally {
         setBusy(null)
       }
@@ -60,8 +75,10 @@ export const PlanScreen = () => {
 
   return (
     <ScrollView
-      contentContainerStyle={[wash, styles.page, { gap: theme.spacing.lg }]}
+      contentContainerStyle={[wash, styles.page, { gap: theme.spacing.lg, paddingTop: insets.top + theme.spacing.md }]}
     >
+      <SheetHeader title="Plan" onClose={() => navigation.goBack()} />
+
       <Card>
         <Text variant="label" tone="secondary">
           Current plan
@@ -104,6 +121,12 @@ export const PlanScreen = () => {
           loading={busy === 'restore'}
           disabled={busy !== null}
         />
+
+        {/* Cancelling is Apple's business, but finding the screen is not obvious —
+            Settings › your name › Subscriptions is four taps from here and most
+            people go looking in the app first. A subscription you cannot leave from
+            inside the app is also a poor look at review time. */}
+        <ManageSubscription visible={isPaid} disabled={busy !== null} />
       </View>
 
       <Text variant="caption" tone="muted" align="center">
@@ -112,6 +135,38 @@ export const PlanScreen = () => {
     </ScrollView>
   )
 }
+
+/**
+ * The way out of a subscription.
+ *
+ * Cancelling is Apple's business, but *finding* the screen is not obvious — it is
+ * four taps deep in Settings and most people look in the app first. Shown only to
+ * subscribers: offering "manage" to someone on the free plan is a dead end.
+ */
+const ManageSubscription = ({
+  visible,
+  disabled,
+}: {
+  readonly visible: boolean
+  readonly disabled: boolean
+}) =>
+  visible ? (
+    <Button
+      label="Manage subscription"
+      variant="ghost"
+      onPress={() => void Linking.openURL(MANAGE_SUBSCRIPTIONS_URL)}
+      disabled={disabled}
+    />
+  ) : null
+
+
+/**
+ * Apple's subscription management screen.
+ *
+ * The documented deep link. It opens the App Store's subscriptions page directly,
+ * rather than dropping the user at the root of Settings to find it themselves.
+ */
+const MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions'
 
 const styles = StyleSheet.create({
   /** Fills the viewport even when the content is short, so the wash reaches the bottom. */

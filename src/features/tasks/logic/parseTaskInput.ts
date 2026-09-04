@@ -1,4 +1,4 @@
-import type { TaskCategory, TaskPriority } from '@/types/entities'
+import type { Recurrence, TaskCategory, TaskPriority } from '@/types/entities'
 import { TASK_CATEGORIES } from '@/types/entities'
 
 /**
@@ -11,10 +11,26 @@ import { TASK_CATEGORIES } from '@/types/entities'
 
 export type ParsedTask = {
   readonly title: string
+  /**
+   * Free-text notes. The AI pass can extract them; the heuristic never invents
+   * them. Carried through every form because a description written on the web was
+   * previously invisible here *and* wiped by the next edit from this app.
+   */
+  readonly description?: string | undefined
   readonly due_date?: string | undefined
   readonly estimated_minutes?: number | undefined
   readonly category?: TaskCategory | undefined
   readonly priority?: TaskPriority | undefined
+  /**
+   * A commitment rather than a to-do: something that happens at a time, shown under
+   * Today's Commitments and never ranked as work. Mirrors the web sheet's
+   * "Scheduled Event" toggle; `AddCommitment` remains the route for the calendar
+   * side of the same idea.
+   */
+  readonly is_scheduled_event?: boolean | undefined
+  /** Recurrence lives on the draft so Add Task can set it, not only the detail screen. */
+  readonly recurrence?: Recurrence | undefined
+  readonly recurrence_end_date?: string | undefined
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000

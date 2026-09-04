@@ -1,47 +1,85 @@
 import { useCallback, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 
 import { useFeedback } from '@/hooks/useFeedback'
 import { base44 } from '@/services/api'
 import { reportError } from '@/services'
-import { queryKeys } from '@/services/api'
+import { friendlyMessage } from '@/utils'
+import type { Task } from '@/types/entities'
+import { emptyPlanNotice } from '../logic/autoScheduleNotice'
 
 /**
  * Smart auto-scheduling.
  *
- * The backend (base44/functions/autoScheduleTasks) does the work and enforces
- * the plan gate itself, returning 403 `upgrade_required` — the client check is
- * only there to avoid a pointless round trip.
+ * **The backend only suggests.** `autoScheduleTasks` returns up to five
+ * `{ task_id, suggested_time, reason, task }` entries and writes nothing; the web
+ * client applies them one at a time as the user accepts. This hook used to invoke
+ * the function, throw the response away and announce "Scheduled N tasks" — so the
+ * app claimed to have planned the day while the database was untouched, and the
+ * plan vanished on the next refresh.
+ *
+ * The plan gate is enforced by the backend (403 `upgrade_required`); the client
+ * check upstream of this only avoids a pointless round trip.
  */
-type Suggestion = { readonly task_id: string; readonly suggested_time: string }
+
+export type Suggestion = {
+  readonly task_id: string
+  readonly suggested_time: string
+  readonly reason?: string
+  readonly task?: Task
+}
+
+type AutoScheduleResponse = {
+  readonly data?: {
+    readonly suggestions?: readonly Suggestion[]
+    /** Why the plan is empty, as a code the app turns into copy. */
+    readonly reason?: string
+    readonly work_hours?: { readonly start?: number; readonly end?: number }
+    /** The backend's log line. Never shown — see `autoScheduleNotice`. */
+    readonly debug?: string
+  }
+}
 
 export const useAutoSchedule = () => {
-  const queryClient = useQueryClient()
   const { show } = useFeedback()
   const [running, setRunning] = useState(false)
+  const [suggestions, setSuggestions] = useState<readonly Suggestion[]>([])
 
-  const run = useCallback(async () => {
+  /** Ask for a plan. Returns what came back so the caller can present it. */
+  const run = useCallback(async (): Promise<readonly Suggestion[]> => {
     setRunning(true)
     try {
-      const response = (await base44.functions.invoke('autoScheduleTasks', {})) as {
-        data?: { suggestions?: Suggestion[]; debug?: string }
-      }
+      const response = (await base44.functions.invoke(
+        'autoScheduleTasks',
+        {},
+      )) as AutoScheduleResponse
 
-      const suggestions = response.data?.suggestions ?? []
-      if (suggestions.length === 0) {
-        show({ message: response.data?.debug ?? 'No free slots found this week.' })
-        return
-      }
+      const next = response.data?.suggestions ?? []
+      setSuggestions(next)
 
-      show({ message: `Scheduled ${String(suggestions.length)} tasks.` })
-      await queryClient.invalidateQueries({ queryKey: queryKeys.tasksAll })
+      if (next.length === 0) {
+        show(
+          emptyPlanNotice({
+            reason: response.data?.reason,
+            workHours: response.data?.work_hours,
+          }),
+        )
+      }
+      return next
     } catch (error) {
       reportError(error, 'autoScheduleTasks')
-      show({ message: "Couldn't build a plan right now.", isError: true })
+      show({
+        message: friendlyMessage(error, "CAPRI couldn't build a plan right now. Please try again."),
+        tone: 'error',
+      })
+      return []
     } finally {
       setRunning(false)
     }
-  }, [queryClient, show])
+  }, [show])
 
-  return { run, running }
+  const dismiss = useCallback((taskId: string) => {
+    setSuggestions((current) => current.filter((entry) => entry.task_id !== taskId))
+  }, [])
+
+  return { run, running, suggestions, dismiss }
 }

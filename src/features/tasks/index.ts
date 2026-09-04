@@ -1,6 +1,8 @@
 /** Public surface of the tasks feature. */
 export { NativeHomeScreen } from './screens/NativeHomeScreen'
 export { PlannerScreen } from './screens/PlannerScreen'
+export { AllTasksScreen } from './screens/AllTasksScreen'
+export { AutoScheduleScreen } from './screens/AutoScheduleScreen'
 export { AddTaskScreen } from './screens/AddTaskScreen'
 export { TaskDetailScreen } from './screens/TaskDetailScreen'
 export { useTaskFeed } from './hooks/useTaskFeed'

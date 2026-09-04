@@ -5,6 +5,8 @@ import { useNavigation } from '@react-navigation/native'
 
 import { Button } from '@/components/Button'
 import { KeyboardAwareScroll } from '@/components/KeyboardAwareScroll'
+import { SheetHeader } from '@/components/SheetHeader'
+import { SheetNotice } from '@/components/Toast'
 import { DateTimeRow } from '@/components/DateTimeRow'
 import { TextField } from '@/components/TextField'
 import { useFeedback } from '@/hooks/useFeedback'
@@ -36,7 +38,7 @@ export const AddCommitmentScreen = () => {
   const { show } = useFeedback()
   const { data: user } = useCurrentUser()
   const { createCommitment } = useCommitmentMutations(user?.email ?? null, (message) =>
-    show({ message, isError: true }),
+    show({ message, tone: 'error' }),
   )
 
   const [title, setTitle] = useState('')
@@ -60,9 +62,22 @@ export const AddCommitmentScreen = () => {
 
   return (
     <KeyboardAwareScroll
+      fit
       align="top"
-      contentStyle={[wash, { padding: size.screenPadding, gap: theme.spacing.lg }]}
+      contentStyle={[
+        wash,
+        {
+          padding: size.screenPadding,
+          paddingBottom: theme.spacing.xxl,
+          gap: theme.spacing.lg,
+        },
+      ]}
     >
+      <SheetHeader title="Block out time" onClose={() => navigation.goBack()} />
+
+      {/* Sheets sit above the root view, so the floating toast cannot reach them. */}
+      <SheetNotice />
+
       <TextField
         label="What is it?"
         placeholder="e.g. Family dinner"

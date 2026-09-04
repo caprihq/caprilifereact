@@ -4,17 +4,28 @@ import { useTheme } from '@/hooks/useTheme'
 import type { BehaviouralSignals } from '@/features/tasks/logic/capriScoring'
 import type { Task } from '@/types/entities'
 import type { TaskFeed } from '../hooks/useTaskFeed'
+import type { useUpNext } from '../hooks/useUpNext'
 import { TodayCommitmentsSection } from '@/features/commitments'
-import { AllTasksSection } from './AllTasksSection'
 import { HeroCard } from './HeroCard'
+import { MilestoneBanner } from './MilestoneBanner'
+import { topPrioritiesCleared } from '../logic/milestone'
 import { SectionLabel } from '@/components/SectionLabel/SectionLabel'
 import { TodayPlanCard } from './TodayPlanCard'
 import { UpNextCard } from './UpNextCard'
 
 /**
- * The three Home sections. Extracted so the screen stays a thin composition
- * of data + layout rather than one long render (guidelines §3.2, §3.3).
+ * Home's sections: what to do now, what is next, today's plan, today's commitments.
+ *
+ * The full task list used to sit below all of this, with its filters and four
+ * headline-count tiles, which meant Home ended in a second screen's worth of content
+ * and had no single subject. The list lives in `AllTasksScreen` now, reached from the
+ * header, and the count tiles are gone.
+ *
+ * Extracted so the screen stays a thin composition of data + layout rather than one
+ * long render (guidelines §3.2, §3.3).
  */
+
+type UpNext = ReturnType<typeof useUpNext>
 
 export type TaskActions = {
   readonly onOpen: (task: Task) => void
@@ -26,22 +37,30 @@ export type TaskActions = {
 
 type HomeSectionsProps = {
   readonly feed: TaskFeed
+  /** CAPRI's Up Next answer, cached and budgeted — see `useUpNext`. */
+  readonly upNext: UpNext
   readonly signals: BehaviouralSignals
   readonly actions: TaskActions
-  /** Whether the headline counts are unlocked for this plan. */
-  readonly showStats: boolean
 }
 
-export const HomeSections = ({ feed, signals, actions, showStats }: HomeSectionsProps) => {
+export const HomeSections = ({ feed, signals, actions, upNext }: HomeSectionsProps) => {
   const theme = useTheme()
   const { onOpen, onComplete, onDefer, onCancel, onViewPlan } = actions
 
   return (
     <View style={{ gap: theme.spacing.xl }}>
+      {/* Above Start Here, which is empty by definition when this fires. */}
+      {topPrioritiesCleared(feed.allTasks, { nowMs: feed.nowMs, timeZone: feed.timeZone }) ? (
+        <MilestoneBanner />
+      ) : null}
+
       <View>
         <SectionLabel>Start Here</SectionLabel>
         <HeroCard
-          task={feed.heroTask}
+          // CAPRI's pick when it has answered; the local ranking until then, and
+          // whenever the model is unreachable.
+          task={upNext.hero?.task ?? feed.heroTask}
+          {...(upNext.hero ? { reason: upNext.hero.reason } : {})}
           nowMs={feed.nowMs}
           timeZone={feed.timeZone}
           signals={signals}
@@ -55,8 +74,9 @@ export const HomeSections = ({ feed, signals, actions, showStats }: HomeSections
       <View>
         <SectionLabel>Up Next</SectionLabel>
         <UpNextCard
-          tasks={feed.upNext}
-          nowMs={feed.nowMs}
+          entries={upNext.entries}
+          loading={upNext.loading}
+          onRefresh={upNext.refresh}
           signals={signals}
           onOpen={onOpen}
           onComplete={onComplete}
@@ -81,14 +101,6 @@ export const HomeSections = ({ feed, signals, actions, showStats }: HomeSections
         nowMs={feed.nowMs}
         timeZone={feed.timeZone}
         onOpenTask={onOpen}
-      />
-
-      <AllTasksSection
-        tasks={feed.allTasks}
-        nowMs={feed.nowMs}
-        timeZone={feed.timeZone}
-        actions={actions}
-        showStats={showStats}
       />
     </View>
   )

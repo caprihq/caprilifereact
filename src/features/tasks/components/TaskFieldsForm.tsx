@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, Switch, View } from 'react-native'
 
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -12,6 +12,7 @@ import type { ParsedTask } from '@/features/tasks/logic/parseTaskInput'
 import { TASK_CATEGORIES, TASK_PRIORITIES } from '@/types/entities'
 import type { TaskCategory, TaskPriority } from '@/types/entities'
 import { DueDateRow } from './DueDateRow'
+import { RecurrenceRow } from './RecurrenceRow'
 
 /**
  * Confirm-and-correct step: shows what was extracted and lets the user fix it
@@ -26,24 +27,33 @@ const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice
 type TaskFieldsFormProps = {
   readonly draft: ParsedTask
   readonly onChange: (next: ParsedTask) => void
-  readonly onBack: () => void
   readonly onSave: () => void
   readonly saving: boolean
+  /** Repeats is an Executive feature; the row still shows, locked. */
+  readonly recurrenceLocked?: boolean
+  readonly onUpgrade?: (() => void) | undefined
+  /**
+   * The Add Task sheet titles its own header per step, so it hides this one. The
+   * task detail screen has no such header and keeps it.
+   */
+  readonly showHeading?: boolean
 }
 
 export const TaskFieldsForm = ({
   draft,
   onChange,
-  onBack,
   onSave,
   saving,
+  recurrenceLocked = false,
+  onUpgrade,
+  showHeading = true,
 }: TaskFieldsFormProps) => {
   const theme = useTheme()
   const [picker, setPicker] = useState<'category' | 'priority' | 'duration' | null>(null)
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
-      <Text variant="title">Confirm</Text>
+      {showHeading ? <Text variant="title">Edit details</Text> : null}
 
       <TextField
         label="Title"
@@ -51,6 +61,19 @@ export const TaskFieldsForm = ({
         value={draft.title}
         onChangeText={(title) => onChange({ ...draft, title })}
         autoCapitalize="sentences"
+      />
+
+      <TextField
+        label="Notes"
+        showLabel
+        placeholder="Anything worth remembering"
+        value={draft.description ?? ''}
+        onChangeText={(description) => onChange({ ...draft, description })}
+        autoCapitalize="sentences"
+        multiline
+        numberOfLines={3}
+        textAlignVertical="top"
+        style={styles.notes}
       />
 
       <Card flush>
@@ -76,16 +99,82 @@ export const TaskFieldsForm = ({
         />
       </Card>
 
-      <Button label="Save task" onPress={onSave} loading={saving} disabled={!draft.title.trim()} />
-      <Button label="Back" variant="ghost" onPress={onBack} />
+      <RecurrenceRow
+        value={draft.recurrence}
+        endDate={draft.recurrence_end_date}
+        locked={recurrenceLocked}
+        onChange={(recurrence) => onChange({ ...draft, recurrence })}
+        onChangeEndDate={(recurrence_end_date) => onChange({ ...draft, recurrence_end_date })}
+        onUpgrade={onUpgrade ?? (() => undefined)}
+      />
 
+      <ScheduledEventToggle
+        value={draft.is_scheduled_event ?? false}
+        onChange={(is_scheduled_event) => onChange({ ...draft, is_scheduled_event })}
+      />
+
+      <Button
+        label={draft.is_scheduled_event ? 'Save event' : 'Save & prioritise'}
+        icon="sparkles"
+        onPress={onSave} loading={saving} disabled={!draft.title.trim()} />
+
+      <FieldPickers draft={draft} onChange={onChange} picker={picker} onClose={() => setPicker(null)} />
+    </View>
+  )
+}
+
+/**
+ * A commitment is something that happens at a time, not work to rank.
+ *
+ * The web sheet calls this "Scheduled Event". Setting it keeps the item out of Start
+ * Here and Up Next — `useTaskFeed` filters `is_scheduled_event` out of the ranking —
+ * and puts it under Today's Commitments instead.
+ */
+const ScheduledEventToggle = ({
+  value,
+  onChange,
+}: {
+  readonly value: boolean
+  readonly onChange: (next: boolean) => void
+}) => {
+  const theme = useTheme()
+
+  return (
+    <Card>
+      <View style={[styles.toggle, { gap: theme.spacing.md }]}>
+        <View style={styles.toggleText}>
+          <Text variant="body">Scheduled event</Text>
+          <Text variant="caption" tone="muted">
+            Shows under Today&apos;s Commitments instead of being ranked as work
+          </Text>
+        </View>
+        <Switch accessibilityLabel="Scheduled event" value={value} onValueChange={onChange} />
+      </View>
+    </Card>
+  )
+}
+
+
+/** Category, priority and duration, which are choices rather than typing. */
+const FieldPickers = ({
+  draft,
+  onChange,
+  picker,
+  onClose,
+}: {
+  readonly draft: ParsedTask
+  readonly onChange: (next: ParsedTask) => void
+  readonly picker: 'category' | 'priority' | 'duration' | null
+  readonly onClose: () => void
+}) => (
+  <>
       <Picker
         open={picker === 'category'}
         title="Category"
         value={draft.category ?? 'personal'}
         options={TASK_CATEGORIES.map((value) => ({ value, label: titleCase(value) }))}
         onSelect={(category: TaskCategory) => onChange({ ...draft, category })}
-        onClose={() => setPicker(null)}
+        onClose={onClose}
       />
 
       <Picker
@@ -94,7 +183,7 @@ export const TaskFieldsForm = ({
         value={draft.priority ?? 'medium'}
         options={TASK_PRIORITIES.map((value) => ({ value, label: titleCase(value) }))}
         onSelect={(priority: TaskPriority) => onChange({ ...draft, priority })}
-        onClose={() => setPicker(null)}
+        onClose={onClose}
       />
 
       <Picker
@@ -106,8 +195,14 @@ export const TaskFieldsForm = ({
           label: minutes >= 60 ? `${String(minutes / 60)} hour${minutes > 60 ? 's' : ''}` : `${String(minutes)} min`,
         }))}
         onSelect={(value) => onChange({ ...draft, estimated_minutes: Number(value) })}
-        onClose={() => setPicker(null)}
+        onClose={onClose}
       />
-    </View>
-  )
-}
+  </>
+)
+
+const styles = StyleSheet.create({
+  /** Three lines before it scrolls: enough for a note, not a second screen. */
+  notes: { minHeight: 84 },
+  toggle: { flexDirection: 'row', alignItems: 'center' },
+  toggleText: { flex: 1 },
+})

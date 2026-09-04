@@ -1,4 +1,4 @@
-import { base44 } from '@/services/api'
+import { invokeAI } from './invokeAI'
 import { subtasksFromTitles } from '@/features/tasks/logic/subtasks'
 import type { Subtask, Task } from '@/types/entities'
 import { logAIUsage } from './aiUsageLog'
@@ -65,14 +65,11 @@ export const generateSubtasks = async (
     })
 
   try {
-    const response: unknown = await base44.integrations.Core.InvokeLLM({
-      prompt: buildPrompt(task),
-      response_json_schema: {
+    const response: unknown = await invokeAI('subtasks', buildPrompt(task), {
         type: 'object',
         properties: { subtasks: { type: 'array', items: { type: 'string' } } },
         required: ['subtasks'],
-      },
-    })
+      })
 
     const titles = readTitles(response)
     if (titles.length === 0) {

@@ -27,7 +27,7 @@ export const CalendarIntegrationsSection = ({ onUpgrade }: CalendarIntegrationsS
   const { show } = useFeedback()
   const { hasAccess } = usePlan()
   const unlocked = hasAccess('calendar_sync')
-  const calendar = useCalendarConnection(unlocked, (message) => show({ message, isError: true }))
+  const calendar = useCalendarConnection(unlocked, (message) => show({ message, tone: 'error' }))
 
   return (
     <View style={{ gap: theme.spacing.sm }}>

@@ -9,12 +9,14 @@ import { LoadingView } from '@/components/LoadingView'
 import { useConfirmExit } from '@/hooks/useHardwareBack'
 import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
-import { usePlan } from '@/hooks/usePlan'
 import { loadSignals } from '../logic/signalsStore'
 import type { AppNavigation } from '@/navigation/types'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { OnboardingSheet, useOnboarding } from '@/features/onboarding'
 import { AddTaskButton } from '../components/AddTaskButton'
 import { useHomeActions } from '../hooks/useHomeActions'
 import { useTaskFeed } from '../hooks/useTaskFeed'
+import { useUpNext } from '../hooks/useUpNext'
 import { HomeHeader } from '../components/HomeHeader'
 import { HomeSections } from '../components/HomeSections'
 
@@ -32,8 +34,20 @@ export const NativeHomeScreen = () => {
   const wash = useWash()
   const navigation = useNavigation<AppNavigation>()
   const feed = useTaskFeed()
-  const { hasAccess } = usePlan()
-  const actions = useHomeActions(feed)
+  // Every open task is offered, and the local top four carry the screen until the
+  // answer arrives. The hero is among them: CAPRI decides what to start, so leaving
+  // the local pick out would take that choice away from it.
+  const upNext = useUpNext({
+    candidates: feed.actionable,
+    shortlist: feed.ranked,
+    userEmail: feed.userEmail,
+    nowMs: feed.nowMs,
+    timeZone: feed.timeZone,
+  })
+  // Ordered after `upNext` on purpose: the ignored signal has to be recorded against
+  // the hero the user actually saw.
+  const actions = useHomeActions(feed, upNext.hero?.task.id ?? feed.heroTask?.id ?? null)
+  const onboarding = useOnboarding()
   const [refreshing, setRefreshing] = useState(false)
 
   // Read once per pass and shared by every reason line, rather than each
@@ -43,9 +57,14 @@ export const NativeHomeScreen = () => {
     [feed.nowMs, feed.allTasks],
   )
 
-  const onRefresh = useCallback(() => {
+  /**
+   * Awaited, or the spinner never shows: setting `refreshing` true and false in the
+   * same tick is batched into one render, so the control snapped back before the
+   * refetch had left the device and a pull looked like it did nothing.
+   */
+  const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    feed.refetch()
+    await feed.refetch()
     setRefreshing(false)
   }, [feed])
 
@@ -56,7 +75,7 @@ export const NativeHomeScreen = () => {
       <ErrorView
         title="Couldn't load your tasks"
         message="Check your connection and try again."
-        onRetry={feed.refetch}
+        onRetry={() => void feed.refetch()}
       />
     )
   }
@@ -72,17 +91,16 @@ export const NativeHomeScreen = () => {
           paddingHorizontal: size.screenPadding,
           paddingBottom: theme.spacing.xxxl * 2,
         }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
       >
-        <HomeSections
-          feed={feed}
-          signals={signals}
-          actions={actions}
-          showStats={hasAccess('analytics')}
-        />
+        <HomeSections feed={feed} signals={signals} actions={actions} upNext={upNext} />
       </ScrollView>
 
       <AddTaskButton onPress={() => navigation.navigate('AddTask')} />
+
+      <ConfirmDialog {...actions.completionPrompt} />
+
+      <OnboardingSheet {...onboarding} onFinish={(answers) => void onboarding.finish(answers)} />
     </SafeAreaView>
   )
 }

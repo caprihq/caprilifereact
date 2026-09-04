@@ -9,11 +9,16 @@ import { useNow } from '@/hooks/useNow'
 /**
  * Voice-to-task capture.
  *
- * The free tier gets one capture a day, counted locally. That is per-device
- * and clearable, which the web client documented as an accepted trade-off:
- * two attempts at server-side counting failed because Base44's `.filter()`
- * silently ignores range queries. The genuinely expensive path (the AI parse)
- * is gated server-side regardless.
+ * The free tier gets one capture a day, counted locally. That is per-device and
+ * clearable, which the web client documented as an accepted trade-off: two attempts
+ * at server-side counting failed because Base44's `.filter()` silently ignores range
+ * queries.
+ *
+ * This comment used to add that "the genuinely expensive path (the AI parse) is
+ * gated server-side regardless". It is not, and never was — every `InvokeLLM` call
+ * in this app goes straight from the client, and the only server-side plan check
+ * anywhere is in `autoScheduleTasks`. The limit here is a nudge, not an enforcement,
+ * and it is worth being honest about which.
  */
 
 const dayKey = (nowMs: number) => `capri.voice.${new Date(nowMs).toISOString().slice(0, 10)}`
@@ -33,6 +38,15 @@ export const useVoiceCapture = (onTranscript: (text: string) => void) => {
   const nowMs = useNow()
   const [listening, setListening] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /**
+   * What the recognizer has heard so far, before it commits.
+   *
+   * The bridge has always emitted partials — `isFinal: false` — and this hook
+   * discarded them, so the mic looked frozen for the several seconds a sentence
+   * takes. Showing them is the difference between "is this working?" and watching
+   * your words appear.
+   */
+  const [partial, setPartial] = useState('')
   // Held in a ref so the recognizer subscription is created once, rather than
   // torn down and rebuilt every time the caller passes a new closure.
   // Assigned in an effect, never during render (react-hooks/refs).
@@ -45,12 +59,19 @@ export const useVoiceCapture = (onTranscript: (text: string) => void) => {
     () =>
       initVoiceBridge((channel, payload) => {
         if (channel === 'voice:result') {
-          const { text } = payload as { text: string }
-          onTranscriptRef.current(text)
+          const { text, isFinal } = payload as { text: string; isFinal: boolean }
+          if (isFinal) {
+            setPartial('')
+            onTranscriptRef.current(text)
+          } else {
+            setPartial(text)
+          }
         } else if (channel === 'voice:error') {
+          setPartial('')
           setError(MESSAGES[String(payload)] ?? DEFAULT_ERROR)
         } else if (channel === 'voice:end') {
           setListening(false)
+          setPartial('')
         }
       }),
     [],
@@ -61,6 +82,7 @@ export const useVoiceCapture = (onTranscript: (text: string) => void) => {
 
   const toggle = useCallback(async () => {
     setError(null)
+    setPartial('')
 
     if (listening) {
       await stopVoice()
@@ -77,7 +99,15 @@ export const useVoiceCapture = (onTranscript: (text: string) => void) => {
     await startVoice({ lang: 'en-US' })
   }, [listening, limitReached])
 
-  return { listening, error, limitReached, toggle, recordUse: recordVoiceUse }
+  // A screen left mid-sentence must not hold the microphone open.
+  useEffect(
+    () => () => {
+      void stopVoice()
+    },
+    [],
+  )
+
+  return { listening, partial, error, limitReached, toggle, recordUse: recordVoiceUse }
 }
 
 const DEFAULT_ERROR = "Voice capture didn't work. Please try again or type your task."

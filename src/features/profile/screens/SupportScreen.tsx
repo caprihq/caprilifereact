@@ -37,7 +37,7 @@ export const SupportScreen = () => {
       navigation.goBack()
     } catch (error) {
       reportError(error, 'sendSupportEmail')
-      show({ message: "Couldn't send that. Please try again.", isError: true })
+      show({ message: "Couldn't send that. Please try again.", tone: 'error' })
     } finally {
       setSending(false)
     }

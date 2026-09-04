@@ -20,7 +20,7 @@ const UTC = { nowMs: NOW, timeZone: 'UTC' }
 const NEW_YORK = { nowMs: NOW, timeZone: 'America/New_York' }
 
 describe('filter identity', () => {
-  it('recognises only the five known filters', () => {
+  it('recognises only the known filters', () => {
     for (const filter of TASK_FILTERS) expect(isTaskFilter(filter)).toBe(true)
     expect(isTaskFilter('archived')).toBe(false)
     expect(isTaskFilter(undefined)).toBe(false)
@@ -36,9 +36,15 @@ describe('active tasks', () => {
     expect(isActiveTask(task())).toBe(true)
   })
 
-  it('excludes exactly the statuses the web client excluded', () => {
+  it('counts a started task as active, unlike the web client', () => {
+    // The web client's list has `in_progress` in it, which hides a task you are in
+    // the middle of doing from *every* list: not All, not Today, not a priority
+    // chip, and not Done, because Done means completed. Nothing in this app sets the
+    // status, so a task carrying it could not be completed, deferred or cancelled
+    // either. This divergence is the fix for that.
+    expect(INACTIVE_STATUSES.has('in_progress')).toBe(false)
     expect([...INACTIVE_STATUSES].sort()).toEqual(
-      ['canceled', 'completed', 'in_progress', 'saved_for_later'].sort(),
+      ['canceled', 'completed', 'saved_for_later'].sort(),
     )
   })
 })
@@ -53,9 +59,35 @@ describe('applyTaskFilter', () => {
 
   const all = [pending, done, doneLater, critical, high, inProgress]
 
-  it('shows only open work for "all"', () => {
+  it('shows everything under "all", finished work included', () => {
+    // "All" that hides most of a list is a filter pretending to be the absence of
+    // one. Completed tasks stay until they are deleted; the sort sinks them.
     const ids = applyTaskFilter(all, 'all', UTC).map((entry) => entry.id)
-    expect(ids).toEqual(['pending', 'critical', 'high'])
+
+    expect(ids).toEqual(['critical', 'high', 'pending', 'inProgress', 'doneLater', 'done'])
+  })
+
+  it('makes deferred work retrievable under "later"', () => {
+    // Swiping Later sets `saved_for_later`, which is inactive and so absent from
+    // every other filter. Without this chip the task left the app for good, and the
+    // undo toast is gone within seconds.
+    const deferred = task({ id: 'deferred', status: 'saved_for_later' })
+    const ids = applyTaskFilter([...all, deferred], 'later', UTC).map((entry) => entry.id)
+
+    expect(ids).toEqual(['deferred'])
+  })
+
+  it('gives every priority a filter, including the default one', () => {
+    // Medium is what the form applies when nobody chooses, so a bar without it
+    // cannot filter for most of a real list.
+    const medium = task({ id: 'medium', status: 'pending', priority: 'medium' })
+    const low = task({ id: 'low', status: 'pending', priority: 'low' })
+    const unset = task({ id: 'unset', status: 'pending' })
+    const list = [medium, low, unset]
+
+    // An unset priority counts as medium, matching how the card and the sort read it.
+    expect(applyTaskFilter(list, 'medium', UTC).map((e) => e.id)).toEqual(['medium', 'unset'])
+    expect(applyTaskFilter(list, 'low', UTC).map((e) => e.id)).toEqual(['low'])
   })
 
   it('shows only finished work for "completed", newest first', () => {
@@ -77,13 +109,29 @@ describe('applyTaskFilter', () => {
     expect(all).toEqual(original)
   })
 
-  it('preserves server ranking order for non-completed filters', () => {
+  it('ranks by priority band, not by the order the server returned', () => {
+    // The server sorts on `-priority_score` alone, which can put a high-scoring low
+    // priority task above a critical one. A list with "low" at the top reads as
+    // broken however defensible the score is, so the web client re-sorts and so do
+    // we.
     const ordered = [high, critical, pending]
     expect(applyTaskFilter(ordered, 'all', UTC).map((entry) => entry.id)).toEqual([
-      'high',
       'critical',
+      'high',
       'pending',
     ])
+  })
+
+  it('sinks completed work, then bands, then score', () => {
+    const lowLoud = task({ id: 'lowLoud', status: 'pending', priority: 'low', priority_score: 99 })
+    const highQuiet = task({ id: 'highQuiet', status: 'pending', priority: 'high', priority_score: 1 })
+    const highLoud = task({ id: 'highLoud', status: 'pending', priority: 'high', priority_score: 80 })
+
+    const ids = applyTaskFilter([lowLoud, highQuiet, highLoud], 'all', UTC).map((e) => e.id)
+
+    // Band first: both high tasks outrank the loud low one. Score only breaks ties
+    // inside a band.
+    expect(ids).toEqual(['highLoud', 'highQuiet', 'lowLoud'])
   })
 })
 

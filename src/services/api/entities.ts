@@ -1,5 +1,5 @@
 import { base44 } from './base44Client'
-import type { AIUsageLog, Commitment, Task, User } from '@/types/entities'
+import type { AIUsageLog, Commitment, FocusTime, Task, User } from '@/types/entities'
 
 /**
  * Typed entity accessors.
@@ -14,11 +14,21 @@ import type { AIUsageLog, Commitment, Task, User } from '@/types/entities'
  * the web client's `FocusTime` bug hid for so long.
  */
 
+/**
+ * What may be written to an entity.
+ *
+ * Looser than `Partial<T>` on purpose: Base44 distinguishes an **omitted** field,
+ * which it leaves alone, from an explicit `null`, which clears it. Without the null
+ * there is no way to express "remove this task from today" — the app would have to
+ * cast, and a cast is exactly where that distinction gets lost.
+ */
+export type Writable<T> = { [K in keyof T]?: T[K] | null }
+
 type EntityModule<T> = {
   filter: (query: Record<string, unknown>, sort?: string) => Promise<T[]>
   get: (id: string) => Promise<T>
-  create: (data: Partial<T>) => Promise<T>
-  update: (id: string, data: Partial<T>) => Promise<T>
+  create: (data: Writable<T>) => Promise<T>
+  update: (id: string, data: Writable<T>) => Promise<T>
   delete: (id: string) => Promise<unknown>
 }
 
@@ -37,3 +47,5 @@ export const TaskEntity = (): EntityModule<Task> => resolve<Task>('Task')
 export const CommitmentEntity = (): EntityModule<Commitment> => resolve<Commitment>('Commitment')
 export const UserEntity = (): EntityModule<User> => resolve<User>('User')
 export const AIUsageLogEntity = (): EntityModule<AIUsageLog> => resolve<AIUsageLog>('AIUsageLog')
+/** Read-only here: focus blocks describe the user to the model, nothing edits them. */
+export const FocusTimeEntity = (): EntityModule<FocusTime> => resolve<FocusTime>('FocusTime')

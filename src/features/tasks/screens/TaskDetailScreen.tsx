@@ -4,6 +4,8 @@ import { useNavigation, useRoute } from '@react-navigation/native'
 import type { RouteProp } from '@react-navigation/native'
 
 import { ErrorView } from '@/components/ErrorView'
+import { SheetHeader } from '@/components/SheetHeader'
+import { SheetNotice } from '@/components/Toast'
 import { useWash } from '@/hooks/useWash'
 import type { AppStackParamList } from '@/navigation/types'
 import { useTaskFeed } from '../hooks/useTaskFeed'
@@ -42,6 +44,11 @@ export const TaskDetailScreen = () => {
       contentContainerStyle={[wash, styles.page]}
       keyboardShouldPersistTaps="handled"
     >
+      <SheetHeader title="Task" onClose={() => navigation.goBack()} />
+
+      {/* Sheets sit above the root view, so the floating toast cannot reach them. */}
+      <SheetNotice />
+
       <TaskDetailBody task={task} userEmail={feed.userEmail} />
     </ScrollView>
   )

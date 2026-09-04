@@ -1,9 +1,15 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigation } from '@react-navigation/native'
 
 import { useFeedback } from '@/hooks/useFeedback'
 import { recordIgnored, recordInteraction } from '../logic/signalsStore'
 import type { AppNavigation } from '@/navigation/types'
+import {
+  COMPLETION_CONFIRM_LABEL,
+  COMPLETION_ICON,
+  COMPLETION_MESSAGE,
+  completionTitle,
+} from '../logic/completionPrompt'
 import type { Task } from '@/types/entities'
 import { useTaskMutations } from '../services/useTaskMutations'
 import type { TaskActions } from '../components/HomeSections'
@@ -16,7 +22,7 @@ import type { TaskFeed } from './useTaskFeed'
  * signal recording sits next to the action that causes it rather than being
  * scattered through JSX.
  */
-export const useHomeActions = (feed: TaskFeed): TaskActions => {
+export const useHomeActions = (feed: TaskFeed, displayedHeroId?: string | null) => {
   const navigation = useNavigation<AppNavigation>()
   const { show } = useFeedback()
   const { completeTask, deferTask, cancelTask } = useTaskMutations({
@@ -24,8 +30,34 @@ export const useHomeActions = (feed: TaskFeed): TaskActions => {
     onFeedback: show,
   })
 
-  const heroId = feed.heroTask?.id
+  /**
+   * Which task is on screen as "Start Here".
+   *
+   * Passed in by Home, because the hero shown there is CAPRI's pick and the local
+   * ranking's pick only until the model answers. Reading `feed.heroTask` here would
+   * mean skipping the recommended task records nothing whenever the two disagree —
+   * silently, and precisely for the users whose recommendation is model-driven.
+   */
+  const heroId = displayedHeroId === undefined ? feed.heroTask?.id : displayedHeroId
   const nowMs = feed.nowMs
+
+  /**
+   * Completion asks first.
+   *
+   * It was a single tap on a small circle, and the only way back was an undo toast
+   * that is gone in seconds — so a mis-tap quietly finished someone's work. Marking
+   * something done is the one action here that claims a thing happened in the real
+   * world, which is worth a question.
+   *
+   * Deferring and cancelling stay immediate: both are reversible in place, and
+   * confirming every swipe would make the gesture pointless.
+   */
+  const [pending, setPending] = useState<Task | null>(null)
+
+  const confirmCompletion = useCallback(() => {
+    if (pending) completeTask(pending)
+    setPending(null)
+  }, [completeTask, pending])
 
   const openTask = useCallback(
     (task: Task) => {
@@ -48,10 +80,10 @@ export const useHomeActions = (feed: TaskFeed): TaskActions => {
     [heroId],
   )
 
-  return useMemo(
+  const actions: TaskActions = useMemo(
     () => ({
       onOpen: openTask,
-      onComplete: completeTask,
+      onComplete: setPending,
       onDefer: (task: Task) => {
         noteSkipped(task)
         deferTask(task)
@@ -62,6 +94,21 @@ export const useHomeActions = (feed: TaskFeed): TaskActions => {
       },
       onViewPlan: () => navigation.navigate('Planner'),
     }),
-    [openTask, completeTask, deferTask, cancelTask, noteSkipped, navigation],
+    [openTask, deferTask, cancelTask, noteSkipped, navigation],
   )
+
+  /** Spread onto `ConfirmDialog` by whichever screen renders these actions. */
+  const completionPrompt = {
+    open: pending !== null,
+    title: completionTitle(pending),
+    message: COMPLETION_MESSAGE,
+    confirmLabel: COMPLETION_CONFIRM_LABEL,
+    icon: COMPLETION_ICON,
+    onConfirm: confirmCompletion,
+    onCancel: () => {
+      setPending(null)
+    },
+  }
+
+  return { ...actions, completionPrompt }
 }

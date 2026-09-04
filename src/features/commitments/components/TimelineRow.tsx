@@ -20,9 +20,11 @@ type TimelineRowProps = {
   readonly item: TimelineItem
   readonly isLast: boolean
   readonly onPress?: (() => void) | undefined
+  /** Removing a commitment. Never offered on a calendar row — see below. */
+  readonly onLongPress?: (() => void) | undefined
 }
 
-export const TimelineRow = ({ item, isLast, onPress }: TimelineRowProps) => {
+export const TimelineRow = ({ item, isLast, onPress, onLongPress }: TimelineRowProps) => {
   const theme = useTheme()
   const interactive = !!onPress && item.source !== 'calendar'
 
@@ -74,8 +76,12 @@ export const TimelineRow = ({ item, isLast, onPress }: TimelineRowProps) => {
   return (
     <Pressable
       onPress={onPress}
+      // Only CAPRI's own rows: a calendar entry belongs to Google, and removing it
+      // here would either fail or delete someone's real meeting.
+      onLongPress={item.source === 'commitment' ? onLongPress : undefined}
       accessibilityRole="button"
       accessibilityLabel={item.title}
+      accessibilityHint={item.source === 'commitment' ? 'Long press to remove' : undefined}
       style={({ pressed }) => (pressed ? { backgroundColor: theme.colors.background } : null)}
     >
       {content}

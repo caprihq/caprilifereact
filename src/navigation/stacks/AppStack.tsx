@@ -4,7 +4,13 @@ import { AdminScreen } from '@/features/admin'
 import { ChangePasswordScreen } from '@/features/auth'
 import { AddCommitmentScreen } from '@/features/commitments'
 import { PlanScreen, PrivacyScreen, SupportScreen } from '@/features/profile'
-import { AddTaskScreen, PlannerScreen, TaskDetailScreen } from '@/features/tasks'
+import {
+  AddTaskScreen,
+  AllTasksScreen,
+  AutoScheduleScreen,
+  PlannerScreen,
+  TaskDetailScreen,
+} from '@/features/tasks'
 import { useTheme } from '@/hooks/useTheme'
 import { buildHeaderOptions } from '../navigationTheme'
 import { gestureOptions, pushAnimation, sheetOptions } from '../screenOptions'
@@ -35,24 +41,35 @@ export const AppStack = () => {
       <Stack.Screen
         name="AddTask"
         component={AddTaskScreen}
-        options={{ ...sheetOptions, title: 'New task' }}
+        // Sheets draw `SheetHeader` instead: a modal presentation gets no back
+        // button from the native header, so every sheet needs its own way back.
+        options={{ ...sheetOptions, headerShown: false }}
       />
       <Stack.Screen
         name="AddCommitment"
         component={AddCommitmentScreen}
-        options={{ ...sheetOptions, title: 'Block out time' }}
+        options={{ ...sheetOptions, headerShown: false }}
       />
       <Stack.Screen
         name="TaskDetail"
         component={TaskDetailScreen}
-        options={{ ...sheetOptions, title: 'Task' }}
+        options={{ ...sheetOptions, headerShown: false }}
       />
 
+      <Stack.Screen name="AllTasks" component={AllTasksScreen} options={{ title: 'All tasks' }} />
       <Stack.Screen name="Planner" component={PlannerScreen} options={{ title: 'Daily Planner' }} />
-      <Stack.Screen name="Plan" component={PlanScreen} options={{ title: 'Plan' }} />
+      <Stack.Screen
+        name="AutoSchedule"
+        component={AutoScheduleScreen}
+        options={{ presentation: 'modal', headerShown: false }}
+      />
+      {/* Draws `SheetHeader` itself: Plan is reached from inside sheets as well as
+          from Profile, and a modal presentation gets no back control from the
+          native header. */}
+      <Stack.Screen name="Plan" component={PlanScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Contact support' }} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy' }} />
-      <Stack.Screen name="Admin" component={AdminScreen} options={{ title: 'Push console' }} />
+      <Stack.Screen name="Admin" component={AdminScreen} options={{ title: 'Push notifications' }} />
       <Stack.Screen
         name="ChangePassword"
         component={ChangePasswordScreen}

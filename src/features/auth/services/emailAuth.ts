@@ -58,7 +58,13 @@ export const signInWithEmail = async (
       diagFailure('emailAuth:signIn:noToken', new Error('response carried no token'), {
         ...describeResponse(response),
       })
-      return { kind: 'error', message: 'Sign in succeeded but returned no session.' }
+      // The password was right and CAPRI still did not hand back a session. There is
+      // nothing for the user to correct, so the copy says so instead of describing a
+      // missing token.
+      return {
+        kind: 'error',
+        message: 'CAPRI could not finish signing you in. Please try again in a moment.',
+      }
     }
 
     diag('emailAuth:signIn:ok')
@@ -142,7 +148,10 @@ export const verifyEmailOtp = async (email: string, code: string): Promise<Email
       diagFailure('emailAuth:verifyOtp:noToken', new Error('response carried no token'), {
         ...describeResponse(response),
       })
-      return { kind: 'error', message: 'That code did not complete sign in.' }
+      return {
+        kind: 'error',
+        message: 'That code was accepted but sign-in did not finish. Please try again.',
+      }
     }
     return { kind: 'token', token }
   } catch (error) {

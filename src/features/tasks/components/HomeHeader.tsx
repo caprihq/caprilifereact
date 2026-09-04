@@ -1,31 +1,90 @@
-import { View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
+import Ionicons from 'react-native-vector-icons/Ionicons'
 import { size } from '@/theme'
 
+import { AppLogo } from '@/components/AppLogo'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import { useCurrentUser } from '@/services/api'
+import type { AppNavigation } from '@/navigation/types'
 
-/** Wordmark plus a time-of-day greeting, as on the web Home screen. */
+/**
+ * Logo, greeting, and the way through to every task.
+ *
+ * The logo is the artwork, not the word typed in a display font — the brand had
+ * been rendering two different ways in the same app.
+ *
+ * One action on the right: **All tasks**, replacing the full list that used to sit at
+ * the foot of Home below four other sections, where reaching it meant scrolling past
+ * everything else. This is how the web client gets there too.
+ *
+ * A second button briefly lived here for adding a commitment, because Today's
+ * Commitments hides itself on an empty day. It is gone: Add Task carries the
+ * "Scheduled event" toggle now, which is the web client's route to the same thing, so
+ * the shortcut was a second way to do one job.
+ */
 export const HomeHeader = () => {
   const theme = useTheme()
+  const navigation = useNavigation<AppNavigation>()
   const { data: user } = useCurrentUser()
 
   const firstName = (user?.display_name ?? user?.full_name ?? '').split(' ')[0] ?? ''
 
   return (
     <View
-      style={{
-        paddingHorizontal: size.screenPadding,
-        paddingBottom: theme.spacing.lg,
-        gap: theme.spacing.xs,
-      }}
+      style={[
+        styles.row,
+        { paddingHorizontal: size.screenPadding, paddingBottom: theme.spacing.lg },
+      ]}
     >
-      <Text variant="display">CAPRI</Text>
-      <Text variant="body" tone="secondary">
-        {greetingFor(new Date().getHours())}
-        {firstName ? `, ${firstName}` : ''}
-      </Text>
+      <View style={{ gap: theme.spacing.xs }}>
+        <AppLogo height={30} />
+        <Text variant="body" tone="secondary">
+          {greetingFor(new Date().getHours())}
+          {firstName ? `, ${firstName}` : ''}
+        </Text>
+      </View>
+
+      <HeaderAction
+        label="All tasks"
+        icon="list-outline"
+        onPress={() => navigation.navigate('AllTasks')}
+      />
     </View>
+  )
+}
+
+/** The header's round icon button. */
+const HeaderAction = ({
+  label,
+  icon,
+  onPress,
+}: {
+  readonly label: string
+  readonly icon: string
+  readonly onPress: () => void
+}) => {
+  const theme = useTheme()
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      // Generous, because the glyph is smaller than a fingertip.
+      hitSlop={theme.spacing.sm}
+      style={({ pressed }) => [
+        styles.action,
+        {
+          backgroundColor: theme.colors.fill,
+          borderRadius: theme.radius.full,
+          opacity: pressed ? 0.6 : 1,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={22} color={theme.colors.accentInk} />
+    </Pressable>
   )
 }
 
@@ -34,3 +93,13 @@ export const greetingFor = (hour: number): string => {
   if (hour < 17) return 'Good afternoon'
   return 'Good evening'
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  action: {
+    height: size.tapTarget,
+    width: size.tapTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+})

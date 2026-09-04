@@ -5,6 +5,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons'
 
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
+import { inkOn } from '@/theme/moods'
 
 /**
  * Swipe-left row revealing Later and Cancel, matching the web client's
@@ -80,7 +81,19 @@ const createResponder = ({
   readonly settle: (to: number) => void
 }) =>
   PanResponder.create({
-    // Only claim a clearly horizontal drag, or the row steals the list's scroll.
+    /**
+     * Claimed in the **capture** phase, so a child that is itself pressable cannot
+     * swallow the swipe.
+     *
+     * Without this the row only saw gestures that began on its own background: a
+     * card with a `Pressable` root took the responder on touch-down and kept it, so
+     * every swipe registered as a tap and Later/Cancel were unreachable — the whole
+     * card just opened the task.
+     *
+     * Still only a clearly horizontal drag, or the row steals the list's scroll.
+     */
+    onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+      Math.abs(gesture.dx) > CLAIM_GESTURE && Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onMoveShouldSetPanResponder: (_event, gesture) =>
       Math.abs(gesture.dx) > CLAIM_GESTURE && Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onPanResponderMove: (_event, gesture) => {
@@ -100,6 +113,13 @@ type SwipeableTaskRowProps = {
   readonly onCancel: () => void
   readonly onPress?: (() => void) | undefined
   readonly completed?: boolean
+  /**
+   * The child is a whole card and owns its own surface, padding and completion
+   * control. Mirrors the web client's `hideCheckbox`, and additionally drops this
+   * row's padding and background — without that a card renders inside a second
+   * surface, with two circles to tap and a square edge behind its rounded one.
+   */
+  readonly flush?: boolean
 }
 
 export const SwipeableTaskRow = ({
@@ -109,6 +129,7 @@ export const SwipeableTaskRow = ({
   onCancel,
   onPress,
   completed = false,
+  flush = false,
 }: SwipeableTaskRowProps) => {
   const theme = useTheme()
   const translateX = useMemo(() => new Animated.Value(0), [])
@@ -166,45 +187,88 @@ export const SwipeableTaskRow = ({
         />
         <SwipeAction
           label="Cancel"
-          icon="close"
-          background={theme.colors.textMuted}
+          icon="close-circle"
+          // Destructive, and coloured as such: Cancel used to wear the muted grey
+          // of disabled text, which reads as the inert half of the pair rather
+          // than the one that throws work away.
+          background={theme.colors.danger}
           onPress={() => runAction(onCancel)}
         />
       </View>
 
       <Animated.View
+        // Always opaque, even in flush mode: a transparent sliding surface lets the
+        // actions behind it show through at rest, so every row looked permanently
+        // half-swiped.
         style={[{ backgroundColor: theme.colors.surface }, { transform: [{ translateX }] }]}
         {...responder.panHandlers}
       >
-        <Pressable
+        <RowContent
+          flush={flush}
+          completed={completed}
           onPress={handlePress}
-          style={[styles.content, { padding: theme.spacing.lg, gap: theme.spacing.md }]}
+          onComplete={onComplete}
         >
-          <Ionicons
-            name={completed ? 'checkmark-circle' : 'ellipse-outline'}
-            size={26}
-            color={completed ? theme.colors.accentInk : theme.colors.textMuted}
-            onPress={onComplete}
-            suppressHighlighting
-          />
-          <View style={styles.flex}>{children}</View>
-        </Pressable>
+          {children}
+        </RowContent>
       </Animated.View>
     </View>
   )
 }
 
+/**
+ * What sits on top of the swipe actions.
+ *
+ * Extracted to keep the gesture component inside the 80-line body limit (§3.2); it
+ * is layout only, and the gesture maths above is the part worth reading.
+ */
+const RowContent = ({
+  flush,
+  completed,
+  onPress,
+  onComplete,
+  children,
+}: {
+  readonly flush: boolean
+  readonly completed: boolean
+  readonly onPress: () => void
+  readonly onComplete: () => void
+  readonly children: ReactNode
+}) => {
+  const theme = useTheme()
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.content, flush ? null : { padding: theme.spacing.lg, gap: theme.spacing.md }]}
+    >
+      {flush ? null : (
+        <Ionicons
+          name={completed ? 'checkmark-circle' : 'ellipse-outline'}
+          size={26}
+          color={completed ? theme.colors.accentInk : theme.colors.textMuted}
+          onPress={onComplete}
+          suppressHighlighting
+        />
+      )}
+      <View style={styles.flex}>{children}</View>
+    </Pressable>
+  )
+}
+
 type SwipeActionProps = {
   readonly label: string
-  readonly icon: 'bookmark' | 'close'
+  readonly icon: 'bookmark' | 'close-circle'
   readonly background: string
   readonly onPress: () => void
 }
 
 const SwipeAction = ({ label, icon, background, onPress }: SwipeActionProps) => (
   <View style={[styles.action, { backgroundColor: background }]} onTouchEnd={onPress}>
-    <Ionicons name={icon} size={18} color="#FFFFFF" />
-    <Text variant="caption" tone="onAccent">
+    {/* Ink chosen against the fill rather than assumed white: "Later" is amber, and
+        white on amber is the one pairing in this palette that fails to read. */}
+    <Ionicons name={icon} size={20} color={inkOn(background)} />
+    <Text variant="caption" style={{ color: inkOn(background) }}>
       {label}
     </Text>
   </View>

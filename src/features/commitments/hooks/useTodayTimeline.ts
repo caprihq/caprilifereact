@@ -4,6 +4,7 @@ import { buildTodayTimeline } from '@/features/commitments/logic/timeline'
 import type { TimelineItem } from '@/features/commitments/logic/timeline'
 import { usePlan } from '@/hooks/usePlan'
 import { useCalendarEvents, useCommitments } from '../services/commitmentQueries'
+import { useCalendarImport } from '../services/calendarImport'
 import type { Task } from '@/types/entities'
 
 /**
@@ -35,6 +36,10 @@ export const useTodayTimeline = (options: {
   const { userEmail, tasks, nowMs, timeZone } = options
   const { hasAccess } = usePlan()
   const calendarUnlocked = hasAccess('calendar_sync')
+
+  // Meetings are copied into commitments so the reminder sweep can count down to
+  // them; the cron cannot read a calendar itself. Throttled inside the hook.
+  useCalendarImport(calendarUnlocked && !!userEmail, userEmail)
 
   const commitmentsQuery = useCommitments(userEmail)
   const calendarQuery = useCalendarEvents(calendarUnlocked && !!userEmail)

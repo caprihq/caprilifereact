@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 
 import { useTheme } from '@/hooks/useTheme'
-import { gradient } from '@/hooks/useWash'
+import { gradient } from '@/theme'
 
 /**
  * Rounded surface used for every grouped block.

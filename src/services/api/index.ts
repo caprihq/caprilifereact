@@ -1,5 +1,11 @@
 export { base44, applyToken, httpStatusOf, isAuthFailure } from './base44Client'
-export { TaskEntity, CommitmentEntity, UserEntity, AIUsageLogEntity } from './entities'
+export {
+  TaskEntity,
+  CommitmentEntity,
+  UserEntity,
+  AIUsageLogEntity,
+  FocusTimeEntity,
+} from './entities'
 export { queryClient, clearQueryCache } from './queryClient'
 export { queryKeys } from './queryKeys'
 export { useCurrentUser } from './userQueries'

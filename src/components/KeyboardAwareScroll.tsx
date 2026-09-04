@@ -54,21 +54,31 @@ export const KeyboardAwareScroll = ({
   align = 'center',
   extraBottomSpace = size.screenPadding,
   contentStyle,
+  fit = false,
 }: {
   readonly children: ReactNode
   /** `center` only applies while the keyboard is hidden. */
   readonly align?: 'center' | 'top'
   readonly extraBottomSpace?: number
   readonly contentStyle?: StyleProp<ViewStyle>
+  /**
+   * Measure to the content instead of filling the screen.
+   *
+   * For a sheet with `sheetAllowedDetents: 'fitToContents'`: the sheet asks its
+   * content how tall it is, and a scroll view that stretches to fill always answers
+   * "all of it", which is how a three-element form ends up occupying the whole
+   * screen with half of it empty.
+   */
+  readonly fit?: boolean
 }) => {
   const keyboard = useKeyboard()
   const justifyContent = resolveJustify(align, keyboard.visible)
 
   return (
     <ScrollView
-      style={styles.root}
+      style={fit ? undefined : styles.root}
       contentContainerStyle={[
-        styles.content,
+        fit ? null : styles.content,
         { justifyContent },
         // Top alignment gains a little headroom; centring supplies its own.
         justifyContent === 'flex-start' && styles.topPadding,

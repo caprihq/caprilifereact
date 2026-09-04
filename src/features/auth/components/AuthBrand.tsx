@@ -5,18 +5,18 @@ import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 
 /**
- * Badge, welcome heading and subtitle above the sign-in actions.
+ * Logo, welcome heading and subtitle above the sign-in actions.
  *
- * Replaces a bare text wordmark and tagline. The heading names the product in
- * full, which is what the target design leads with, and the subtitle states what
- * the screen is for rather than restating the tagline.
+ * The heading names the product in full, which is what the target design leads
+ * with, and the subtitle states what the screen is for rather than restating the
+ * tagline. The logo itself switches artwork with the mode; see `AppLogo`.
  */
 export const AuthBrand = () => {
   const theme = useTheme()
 
   return (
     <View style={styles.root}>
-      <AppLogo size={88} />
+      <AppLogo height={52} />
 
       <Text
         variant="title"

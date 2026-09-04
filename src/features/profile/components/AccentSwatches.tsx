@@ -3,7 +3,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons'
 
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
-import { gradient } from '@/hooks/useWash'
+import { gradient } from '@/theme'
 import { ACCENT_NAMES, inkOn, moodFor } from '@/theme'
 import type { AccentName } from '@/theme'
 

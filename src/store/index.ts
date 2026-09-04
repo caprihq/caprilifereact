@@ -2,6 +2,6 @@
 export { useAuthStore, authStatus } from './authStore'
 export type { AuthStatus } from './authStore'
 export { useFeedbackStore, showFeedback } from './feedbackStore'
-export type { Feedback } from './feedbackStore'
+export type { Feedback, FeedbackTone } from './feedbackStore'
 export { useThemeStore, currentThemeMode } from './themeStore'
 export type { ModePreference } from './themeStore'

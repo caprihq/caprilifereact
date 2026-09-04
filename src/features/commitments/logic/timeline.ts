@@ -114,8 +114,28 @@ const fromScheduledTasks = (input: TimelineInput): readonly TimelineItem[] =>
     ]
   })
 
-const fromCalendar = (input: TimelineInput): readonly TimelineItem[] =>
-  input.events.flatMap((event) => {
+/**
+ * Calendar events that have already been imported as commitments.
+ *
+ * The backend copies the next 48 hours of meetings into `Commitment` rows so the
+ * reminder sweep can count down to them — a scheduled job cannot read anyone's
+ * calendar, because the connector only issues a token for the user making a
+ * request. That import means every meeting now arrives here twice: once as the
+ * live event, once as its imported row. The row wins, because it is the one a
+ * reminder is attached to.
+ */
+const importedEventIds = (input: TimelineInput): ReadonlySet<string> =>
+  new Set(
+    input.commitments
+      .map((commitment) => commitment.external_event_id)
+      .filter((id): id is string => !!id),
+  )
+
+const fromCalendar = (input: TimelineInput): readonly TimelineItem[] => {
+  const alreadyImported = importedEventIds(input)
+
+  return input.events.flatMap((event) => {
+    if (alreadyImported.has(event.id)) return []
     if (!isLocalToday(event.start, input.nowMs, input.timeZone)) return []
     const sortMs = msOf(event.start)
     if (sortMs === null) return []
@@ -130,6 +150,7 @@ const fromCalendar = (input: TimelineInput): readonly TimelineItem[] =>
       },
     ]
   })
+}
 
 /** Everything happening today, earliest first. */
 export const buildTodayTimeline = (input: TimelineInput): readonly TimelineItem[] =>

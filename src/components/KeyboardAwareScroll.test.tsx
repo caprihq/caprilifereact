@@ -84,5 +84,9 @@ describe('KeyboardAwareScroll props', () => {
     expect(content.flexGrow).toBe(1)
     // A gap so the last control clears the keyboard's edge.
     expect(content.paddingBottom).toBeGreaterThan(0)
-  })
+    // 20s, not the 5s default: this is the only test in the file that mounts a real
+    // RN tree, and a cold first render under full-suite parallel load has measured
+    // ~11s on this machine against ~2s in isolation. The assertions are cheap; the
+    // mount is not.
+  }, 20_000)
 })

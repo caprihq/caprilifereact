@@ -2,6 +2,7 @@ import { Platform } from 'react-native'
 import Purchases from 'react-native-purchases'
 import type { CustomerInfo } from 'react-native-purchases'
 import { logError } from '@/utils'
+import { IAP_PRODUCT_MISSING, IAP_UNAVAILABLE } from '@/features/profile/logic/purchaseNotice'
 
 /**
  * RevenueCat, native side.
@@ -27,7 +28,14 @@ const API_KEYS: Partial<Record<typeof Platform.OS, string>> = {
 
 const ENTITLEMENT = 'capri_executive'
 
-const UNSUPPORTED = 'In-app purchases are not available on this platform yet.'
+/**
+ * Tagged rather than described, because these messages are for the log.
+ *
+ * `purchaseNotice` turns a code into the sentence the buyer reads; a thrown string
+ * like "Unknown product: capri_executive_monthly" was reaching them verbatim.
+ */
+const iapError = (code: string, detail: string): Error =>
+  Object.assign(new Error(detail), { code })
 
 let configured = false
 
@@ -72,15 +80,17 @@ export const setIAPUser = async (userId: unknown): Promise<null> => {
 export const purchaseProduct = async (
   productId: unknown,
 ): Promise<{ success: true; plan: 'executive' | 'free' }> => {
-  if (!isIAPAvailable()) throw new Error(UNSUPPORTED)
-  if (typeof productId !== 'string') throw new Error('Missing product id')
+  if (!isIAPAvailable()) throw iapError(IAP_UNAVAILABLE, 'no store key for this platform')
+  if (typeof productId !== 'string') {
+    throw iapError(IAP_PRODUCT_MISSING, 'purchase called without a product id')
+  }
   configureIAP()
 
   const offerings = await Purchases.getOfferings()
   const pkg = offerings.current?.availablePackages.find(
     (candidate) => candidate.product.identifier === productId,
   )
-  if (!pkg) throw new Error(`Unknown product: ${productId}`)
+  if (!pkg) throw iapError(IAP_PRODUCT_MISSING, `no store package for ${productId}`)
 
   const { customerInfo } = await Purchases.purchasePackage(pkg)
   return { success: true, plan: planFrom(customerInfo) }
@@ -90,7 +100,7 @@ export const restorePurchases = async (): Promise<{
   success: true
   plan: 'executive' | 'free'
 }> => {
-  if (!isIAPAvailable()) throw new Error(UNSUPPORTED)
+  if (!isIAPAvailable()) throw iapError(IAP_UNAVAILABLE, 'no store key for this platform')
   configureIAP()
   const customerInfo = await Purchases.restorePurchases()
   return { success: true, plan: planFrom(customerInfo) }

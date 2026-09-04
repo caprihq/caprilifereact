@@ -183,3 +183,55 @@ describe('buildTodayTimeline', () => {
     })
   })
 })
+
+describe('imported calendar events', () => {
+  /**
+   * The backend copies meetings into commitments so the reminder sweep has
+   * something to count down to. Without this the same meeting is listed twice:
+   * once live from Google, once as its imported row.
+   */
+  const imported = commitment({
+    id: 'c-import',
+    title: 'Standup',
+    start_time: iso(9),
+    end_time: iso(9, 15),
+    origin_source: 'google_calendar',
+    external_event_id: 'e1',
+  })
+
+  it('shows an imported meeting once, not twice', () => {
+    const items = buildTodayTimeline({
+      ...empty,
+      commitments: [imported],
+      events: [event({ id: 'e1' })],
+      ...UTC,
+    })
+
+    expect(items).toHaveLength(1)
+    // The commitment wins: it is the row a reminder is attached to.
+    expect(items[0]?.source).toBe('commitment')
+  })
+
+  it('still shows a meeting that has not been imported yet', () => {
+    const items = buildTodayTimeline({
+      ...empty,
+      commitments: [imported],
+      events: [event({ id: 'e1' }), event({ id: 'e2', title: 'Review', start: iso(11) })],
+      ...UTC,
+    })
+
+    expect(items.map((item) => item.title)).toEqual(['Standup', 'Review'])
+  })
+
+  it('leaves manual commitments alone', () => {
+    // A hand-made commitment has no external id and must never suppress an event.
+    const items = buildTodayTimeline({
+      ...empty,
+      commitments: [commitment()],
+      events: [event()],
+      ...UTC,
+    })
+
+    expect(items).toHaveLength(2)
+  })
+})

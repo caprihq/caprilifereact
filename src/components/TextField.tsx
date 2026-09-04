@@ -34,6 +34,9 @@ type TextFieldProps = Pick<
   | 'autoFocus'
   | 'selectTextOnFocus'
   | 'numberOfLines'
+  // Notes are prose: a task description needs room to breathe.
+  | 'multiline'
+  | 'textAlignVertical'
 > & {
   /** Always the accessibility label; shown above the field when `showLabel`. */
   readonly label: string
@@ -54,6 +57,15 @@ export const TextField = ({
   // Focus is tracked so the field can take the accent while it is active. The
   // caller's own handlers still run — this wraps them rather than replacing them.
   const [focused, setFocused] = useState(false)
+  /**
+   * A multiline field grows; a single-line one is a fixed slab.
+   *
+   * The shell used to be `height: size.control` in both cases, so a taller input
+   * inside a row with `alignItems: 'center'` overflowed *above and below* its own
+   * border — the placeholder floated outside the box. Growing the shell instead
+   * keeps the text centred in whatever height it settles at.
+   */
+  const grows = inputProps.multiline === true
 
   return (
     <View>
@@ -66,6 +78,9 @@ export const TextField = ({
       <View
         style={[
           styles.shell,
+          grows
+            ? { minHeight: size.control, paddingVertical: theme.spacing.md }
+            : { height: size.control },
           {
             backgroundColor: theme.colors.fill,
             // A focused field takes the accent at full strength; at rest it wears
@@ -114,8 +129,9 @@ export const TextField = ({
 const styles = StyleSheet.create({
   shell: {
     flexDirection: 'row',
+    // Centred: with a grown shell this is what puts the text in the middle of the
+    // box rather than against its top edge.
     alignItems: 'center',
-    height: size.control,
     borderWidth: StyleSheet.hairlineWidth,
   },
   input: { flex: 1, padding: 0 },

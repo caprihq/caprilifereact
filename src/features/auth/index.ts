@@ -5,6 +5,8 @@
  * only — never from its screens, services or logic directly.
  */
 export { AuthProvider, useAuth } from './model/AuthContext'
+/** Exported so the notifications setting can trigger the permission prompt. */
+export { registerForPush } from './services/pushRegistration'
 export { LoginScreen } from './screens/LoginScreen'
 export { EmailSignInScreen } from './screens/EmailSignInScreen'
 export { EmailSignUpScreen } from './screens/EmailSignUpScreen'

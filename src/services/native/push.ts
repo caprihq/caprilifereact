@@ -10,29 +10,47 @@ import DeviceInfo from 'react-native-device-info'
 import { logWarn } from '@/utils'
 
 /**
- * APNs device token.
+ * The device's APNs registration, as the backend needs to store it.
  *
- * Returns the token string, or **null** when permission is denied or anything
- * goes wrong — callers treat null as "no push" and carry on, so this must
- * never throw.
+ * Returns **null** when permission is denied or anything goes wrong — callers
+ * treat null as "no push" and carry on, so this must never throw.
  *
- * `getAPNSToken` returns the raw APNs token rather than an FCM one, which is
- * what the backend's sendPushNotification expects: it signs its own APNs
- * requests and talks to Apple directly, with no Firebase in the delivery path.
+ * `getAPNSToken` gives the raw Apple token rather than an FCM one. Firebase is
+ * only the plumbing that asks iOS for it: nothing in the delivery path touches
+ * Firebase, and the backend posts straight to Apple.
  *
  * @react-native-firebase v26 uses a modular API — free functions taking a
  * Messaging instance; the old `messaging().x()` namespaced style is gone.
  */
-export const getPushToken = async (): Promise<string | null> => {
+
+export type PushRegistration = {
+  readonly token: string
+  /**
+   * Which APNs host this token is valid on, and the reason the backend no longer
+   * has a global `APNS_USE_PRODUCTION` switch.
+   *
+   * Sandbox and production are separate token spaces: a token issued to a build
+   * signed with `aps-environment: development` is meaningless on Apple's
+   * production host, and Apple answers `BadDeviceToken` for every push. One
+   * server-side switch is therefore wrong for half the fleet as soon as a
+   * TestFlight build and an Xcode build both exist, so the device says which it is.
+   *
+   * The mapping is the entitlement each build config signs with: Debug carries
+   * `CAPRI.entitlements` (development → sandbox), Release carries
+   * `CAPRIRelease.entitlements` (production). `__DEV__` distinguishes them, and
+   * TestFlight — which is production, a common mix-up — falls on the right side.
+   */
+  readonly environment: 'sandbox' | 'production'
+}
+
+export const getPushRegistration = async (): Promise<PushRegistration | null> => {
   try {
     // The simulator has no APNs token; asking for one never resolves.
     if (await DeviceInfo.isEmulator()) return null
 
-    // Android cannot produce an APNs token, and the backend
-    // (registerPushToken / sendPushNotification) speaks only APNs. Returning
-    // early is honest: the alternative is requesting a notification permission
-    // the app then cannot act on. Enabling Android push is a backend change —
-    // an FCM token here plus an FCM sender there (§0.2).
+    // Android cannot produce an APNs token. The backend routes by provider, so
+    // Android support is an `FCMProvider` there plus an FCM token here — not
+    // something to fake from this function (§0.2).
     if (Platform.OS === 'android') return null
 
     const messaging = getMessaging()
@@ -43,7 +61,10 @@ export const getPushToken = async (): Promise<string | null> => {
 
     // Must be registered before the APNs token is available.
     await registerDeviceForRemoteMessages(messaging)
-    return await getAPNSToken(messaging)
+    const token = await getAPNSToken(messaging)
+    if (!token) return null
+
+    return { token, environment: __DEV__ ? 'sandbox' : 'production' }
   } catch (error) {
     logWarn('[CapriPush] could not obtain a device token', error)
     return null

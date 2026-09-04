@@ -1,10 +1,9 @@
-import { View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 
 import { Card } from '@/components/Card'
 import { EmptyState } from '@/components/EmptyState'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
-import { getTaskReason } from '@/features/tasks/logic/taskReason'
 import type { BehaviouralSignals } from '@/features/tasks/logic/capriScoring'
 import type { Task } from '@/types/entities'
 import { SwipeableTaskRow } from './SwipeableTaskRow'
@@ -18,8 +17,10 @@ import { SwipeableTaskRow } from './SwipeableTaskRow'
  */
 
 type UpNextCardProps = {
-  readonly tasks: readonly Task[]
-  readonly nowMs: number
+  /** Task plus the sentence explaining why it ranks now, from CAPRI or the local engine. */
+  readonly entries: readonly { readonly task: Task; readonly reason: string }[]
+  readonly loading: boolean
+  readonly onRefresh: () => void
   readonly signals?: BehaviouralSignals | undefined
   readonly onOpen: (task: Task) => void
   readonly onComplete: (task: Task) => void
@@ -28,9 +29,9 @@ type UpNextCardProps = {
 }
 
 export const UpNextCard = ({
-  tasks,
-  nowMs,
-  signals,
+  entries,
+  loading,
+  onRefresh,
   onOpen,
   onComplete,
   onDefer,
@@ -38,7 +39,7 @@ export const UpNextCard = ({
 }: UpNextCardProps) => {
   const theme = useTheme()
 
-  if (tasks.length === 0) {
+  if (entries.length === 0) {
     return (
       <Card>
         <EmptyState message="Nothing else queued" />
@@ -48,7 +49,7 @@ export const UpNextCard = ({
 
   return (
     <Card flush>
-      {tasks.map((task, index) => (
+      {entries.map(({ task, reason }, index) => (
         <View
           key={task.id}
           style={
@@ -67,12 +68,38 @@ export const UpNextCard = ({
             <Text variant="bodyStrong" numberOfLines={1}>
               {task.title}
             </Text>
-            <Text variant="caption" tone="muted" numberOfLines={1}>
-              {getTaskReason(task, nowMs, signals)}
+            <Text variant="caption" tone="muted" numberOfLines={2}>
+              {reason}
             </Text>
           </SwipeableTaskRow>
         </View>
       ))}
+
+      {/* Asking again costs a model call, so it is a deliberate tap rather than
+          something that happens on every mount. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Ask CAPRI again"
+        onPress={onRefresh}
+        disabled={loading}
+        style={({ pressed }) => [
+          styles.refresh,
+          {
+            padding: theme.spacing.md,
+            borderTopWidth: 1,
+            borderTopColor: theme.colors.border,
+            opacity: loading ? 0.5 : pressed ? 0.6 : 1,
+          },
+        ]}
+      >
+        <Text variant="caption" tone="accent" align="center">
+          {loading ? 'Thinking…' : 'Ask CAPRI again'}
+        </Text>
+      </Pressable>
     </Card>
   )
 }
+
+const styles = StyleSheet.create({
+  refresh: { width: '100%' },
+})
