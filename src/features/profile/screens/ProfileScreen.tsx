@@ -117,14 +117,21 @@ const styles = StyleSheet.create({
  *
  * Together in one hook because the screen body is a list of sections, and threading
  * five pieces of exit state through it buries that.
+ *
+ * `asking` is one value rather than a boolean per dialog (§2.6): two flags can both
+ * be true, which would stack two confirmations on top of each other, and there is no
+ * such thing as being asked two questions at once.
  */
+type ExitPrompt = 'signOut' | 'delete' | null
+
 const useAccountExit = () => {
   const { signOut } = useAuth()
   const { deleteAccount, deleting } = useDeleteAccount()
   const [signingOut, setSigningOut] = useState(false)
-  const [confirming, setConfirming] = useState(false)
+  const [asking, setAsking] = useState<ExitPrompt>(null)
 
-  const onSignOut = useCallback(() => {
+  const onConfirmSignOut = useCallback(() => {
+    setAsking(null)
     setSigningOut(true)
     // The next account must not inherit this one's ranking history.
     clearSignals()
@@ -134,17 +141,20 @@ const useAccountExit = () => {
   return {
     signingOut,
     deleting,
-    confirming,
-    onSignOut,
-    onAskDelete: useCallback(() => {
-      setConfirming(true)
+    asking,
+    onAskSignOut: useCallback(() => {
+      setAsking('signOut')
     }, []),
+    onAskDelete: useCallback(() => {
+      setAsking('delete')
+    }, []),
+    onConfirmSignOut,
     onConfirmDelete: useCallback(() => {
-      setConfirming(false)
+      setAsking(null)
       void deleteAccount()
     }, [deleteAccount]),
-    onCancelDelete: useCallback(() => {
-      setConfirming(false)
+    onDismiss: useCallback(() => {
+      setAsking(null)
     }, []),
   }
 }
@@ -153,33 +163,45 @@ const useAccountExit = () => {
  * Leaving, in both senses.
  *
  * Delete is outlined rather than filled: it should be findable and unmistakable
- * without being the brightest thing on a settings screen. The confirmation names
- * what it destroys rather than asking "are you sure", because "are you sure" is a
+ * without being the brightest thing on a settings screen. Both confirmations name
+ * what they do rather than asking "are you sure", because "are you sure" is a
  * question people answer without reading.
+ *
+ * Sign out asks too, though it destroys nothing. It is one tap from the bottom of a
+ * settings screen people scroll to for other reasons, and the cost of getting it
+ * wrong is not symmetrical: signing back in means finding a password or waiting on an
+ * emailed code, and on this app it means losing the drafted capture on screen.
  */
 const AccountActions = ({
   signingOut,
   deleting,
-  confirming,
-  onSignOut,
+  asking,
+  onAskSignOut,
   onAskDelete,
+  onConfirmSignOut,
   onConfirmDelete,
-  onCancelDelete,
+  onDismiss,
 }: {
   readonly signingOut: boolean
   readonly deleting: boolean
-  readonly confirming: boolean
-  readonly onSignOut: () => void
+  readonly asking: ExitPrompt
+  readonly onAskSignOut: () => void
   readonly onAskDelete: () => void
+  readonly onConfirmSignOut: () => void
   readonly onConfirmDelete: () => void
-  readonly onCancelDelete: () => void
+  readonly onDismiss: () => void
 }) => {
   const theme = useTheme()
 
   return (
     <>
       <View style={{ marginTop: theme.spacing.xl, gap: theme.spacing.md }}>
-        <Button label="Sign out" variant="secondary" onPress={onSignOut} loading={signingOut} />
+        <Button
+          label="Sign out"
+          variant="secondary"
+          onPress={onAskSignOut}
+          loading={signingOut}
+        />
 
         {/* Required in-app by the App Store, and right regardless: asking support to
             delete your data is asking permission to leave. */}
@@ -187,13 +209,23 @@ const AccountActions = ({
       </View>
 
       <ConfirmDialog
-        open={confirming}
+        open={asking === 'signOut'}
+        title="Sign out of CAPRI?"
+        message="Your tasks stay safe. You will need to sign in again to reach them."
+        confirmLabel="Sign out"
+        icon="log-out-outline"
+        onConfirm={onConfirmSignOut}
+        onCancel={onDismiss}
+      />
+
+      <ConfirmDialog
+        open={asking === 'delete'}
         title="Delete your account?"
         message="Every task, commitment and setting is removed permanently. This cannot be undone."
         confirmLabel="Delete everything"
         icon="trash-outline"
         onConfirm={onConfirmDelete}
-        onCancel={onCancelDelete}
+        onCancel={onDismiss}
       />
     </>
   )
