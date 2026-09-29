@@ -1,4 +1,10 @@
-import { recipientSummary, recipientsFor, searchUsers, toggleSelected } from './recipients'
+import {
+  recipientSummary,
+  recipientsFor,
+  searchUsers,
+  selectedUsers,
+  toggleSelected,
+} from './recipients'
 import type { AdminUser } from './recipients'
 
 const user = (id: string, email: string, name = ''): AdminUser => ({
@@ -42,24 +48,37 @@ describe('toggleSelected', () => {
 })
 
 describe('recipientsFor', () => {
-  it('sends to the audience when nobody is picked', () => {
-    expect(recipientsFor('free', [])).toEqual({ audience: 'free' })
+  it('sends to everyone when nobody is picked', () => {
+    // The one implicit rule on the screen: an empty selection is not "send to nobody".
+    expect(recipientsFor([])).toEqual({ audience: 'all' })
   })
 
-  it('lets named people win over the audience', () => {
-    // "Everyone" *and* three selected people is not a coherent request, and choosing
-    // the larger of the two is how a test message reaches every customer.
-    expect(recipientsFor('all', ['1', '2'])).toEqual({ user_ids: ['1', '2'] })
+  it('sends to the named people when there are any', () => {
+    expect(recipientsFor(['1', '2'])).toEqual({ user_ids: ['1', '2'] })
   })
 })
 
 describe('recipientSummary', () => {
-  it('names the audience when nobody is picked', () => {
-    expect(recipientSummary('Everyone', [])).toBe('Everyone')
+  it('says Everyone when nobody is picked', () => {
+    expect(recipientSummary([])).toBe('Everyone')
   })
 
   it('counts people, and gets the singular right', () => {
-    expect(recipientSummary('Everyone', ['1'])).toBe('1 person')
-    expect(recipientSummary('Everyone', ['1', '2', '3'])).toBe('3 people')
+    expect(recipientSummary(['1'])).toBe('1 person')
+    expect(recipientSummary(['1', '2', '3'])).toBe('3 people')
+  })
+})
+
+describe('selectedUsers', () => {
+  it('resolves ids to people, in list order', () => {
+    // Selection order is not list order; the receipt on the compose screen and the
+    // ticks on the picker must not disagree about the order they read in.
+    expect(selectedUsers(people, ['3', '1']).map((u) => u.id)).toEqual(['1', '3'])
+  })
+
+  it('drops an id with no matching user', () => {
+    // The list is refetched between picking and sending, so an account can vanish
+    // in between. A deleted user must not leave a blank row on the compose screen.
+    expect(selectedUsers(people, ['1', 'deleted']).map((u) => u.id)).toEqual(['1'])
   })
 })
