@@ -9,3 +9,5 @@ export {
 export { queryClient, clearQueryCache } from './queryClient'
 export { queryKeys } from './queryKeys'
 export { useCurrentUser } from './userQueries'
+export { startFocusBridge, isAppFocused } from './appFocus'
+export { hydrateQueryCache, startCachePersistence } from './cachePersistence'

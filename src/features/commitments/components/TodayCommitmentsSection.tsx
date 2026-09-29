@@ -1,6 +1,4 @@
-import { useNavigation } from '@react-navigation/native'
 
-import type { AppNavigation } from '@/navigation/types'
 import type { TimelineItem } from '@/features/commitments/logic/timeline'
 import type { Task } from '@/types/entities'
 import { useState } from 'react'
@@ -12,7 +10,7 @@ import { useCommitmentMutations } from '../services/useCommitmentMutations'
 import { TodayCommitmentsCard } from './TodayCommitmentsCard'
 
 /**
- * Container for Today's Commitments: loads the timeline and owns navigation, so
+ * Container for Today's Commitments: loads the timeline, so
  * the card itself stays presentational and the Home screen stays a composition.
  *
  * **Renders nothing when today is clear.** Home should be about what needs doing,
@@ -40,7 +38,6 @@ export const TodayCommitmentsSection = ({
   timeZone,
   onOpenTask,
 }: TodayCommitmentsSectionProps) => {
-  const navigation = useNavigation<AppNavigation>()
   const { show } = useFeedback()
   const timeline = useTodayTimeline({ userEmail, tasks, nowMs, timeZone })
   const { deleteCommitment } = useCommitmentMutations(userEmail, (message) => {
@@ -73,7 +70,6 @@ export const TodayCommitmentsSection = ({
         items={timeline.items}
         onSelect={select}
         onLongPress={requestDelete}
-        onAdd={() => navigation.navigate('AddCommitment')}
       />
 
       <ConfirmDialog

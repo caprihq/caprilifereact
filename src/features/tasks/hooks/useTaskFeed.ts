@@ -20,7 +20,23 @@ import { useTasks } from '../services/taskQueries'
 
 export type TaskFeed = {
   readonly isLoading: boolean
+  /**
+   * Nothing to show **and** the fetch failed — the only case that earns a
+   * full-screen error.
+   *
+   * Deliberately not `query.isError`. Since the cache is restored from disk, a
+   * failed refresh usually happens with a perfectly good task list already on
+   * screen, and blanking it for "Couldn't load your tasks" would throw away the
+   * exact thing the saved copy exists to provide.
+   */
   readonly isError: boolean
+  /**
+   * Drawn from the saved copy because the refresh could not reach the server.
+   *
+   * The screen has to say so. Silently serving yesterday's list looks identical
+   * to a live one, so a task added elsewhere is simply absent with no explanation.
+   */
+  readonly isShowingSaved: boolean
   /**
    * Awaitable on purpose: a pull-to-refresh spinner has to stay up until the data
    * arrives, and a fire-and-forget refetch gives it nothing to wait on.
@@ -89,7 +105,8 @@ export const useTaskFeed = (): TaskFeed => {
 
     return {
       isLoading: tasksQuery.isLoading,
-      isError: tasksQuery.isError,
+      isError: tasksQuery.isError && tasksQuery.data === undefined,
+      isShowingSaved: tasksQuery.isError && tasksQuery.data !== undefined,
       refetch: async () => {
         await tasksQuery.refetch()
       },

@@ -1,6 +1,5 @@
-import { Pressable, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { size } from '@/theme'
-import Ionicons from 'react-native-vector-icons/Ionicons'
 
 import { useTheme } from '@/hooks/useTheme'
 import type { TimelineItem } from '@/features/commitments/logic/timeline'
@@ -22,30 +21,25 @@ type TodayCommitmentsCardProps = {
   readonly onSelect: (item: TimelineItem) => void
   /** Long-press asks to remove a commitment. Calendar rows ignore it. */
   readonly onLongPress: (item: TimelineItem) => void
-  readonly onAdd: () => void
 }
 
 export const TodayCommitmentsCard = ({
   items,
   onSelect,
   onLongPress,
-  onAdd,
 }: TodayCommitmentsCardProps) => {
   const theme = useTheme()
 
   return (
     <View>
+      {/*
+        No add button. Appointments are created through Add Task with the Scheduled
+        event switch, which is one form instead of two and produces something that
+        can be completed and reminded about. This list shows what is already booked:
+        imported calendar events, and scheduled-event tasks.
+      */}
       <View style={styles.header}>
         <SectionLabel>Today&apos;s Commitments</SectionLabel>
-        <Pressable
-          onPress={onAdd}
-          accessibilityRole="button"
-          accessibilityLabel="Add a commitment"
-          hitSlop={theme.spacing.sm}
-          style={styles.add}
-        >
-          <Ionicons name="add" size={20} color={theme.colors.accentInk} />
-        </Pressable>
       </View>
 
       <View
