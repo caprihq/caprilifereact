@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CAPRI — Technical Documentation</title>
+<style>
+  @page { size: A4; margin: 11mm 11mm 10mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 8.1pt; line-height: 1.32; color: #1a1f2b; margin: 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  h1 { font-size: 17pt; margin: 0 0 1mm; letter-spacing: -0.2pt; }
+  .sub { color: #5b6478; font-size: 9pt; margin: 0 0 1.5mm; }
+  .meta { color: #7b8496; font-size: 7.4pt; margin: 0 0 2.5mm;
+          border-bottom: 1.5pt solid #1f3a5f; padding-bottom: 2mm; }
+  h2 { font-size: 9.3pt; margin: 3mm 0 1.3mm; color: #1f3a5f;
+       border-bottom: 0.5pt solid #c9d2e0; padding-bottom: 1mm; }
+  h2 .n { display: inline-block; width: 6.5mm; color: #8a94a8; font-weight: 600; }
+  p { margin: 0 0 1.3mm; }
+  .lede { color: #3c4557; }
+  table { width: 100%; border-collapse: collapse; margin: 1mm 0 1.5mm; }
+  td { padding: 0.8mm 2mm 0.8mm 0; vertical-align: top; border-bottom: 0.4pt solid #e6ebf2; }
+  td.k { width: 31mm; color: #5b6478; font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  code, .m { font-family: "SF Mono", Menlo, monospace; font-size: 7.7pt;
+             background: #eef2f7; padding: 0.3mm 1mm; border-radius: 1.5pt; color: #24406b; }
+  ul { margin: 0 0 1.8mm; padding-left: 4mm; }
+  li { margin-bottom: 0.7mm; }
+  .note { background: #f4f7fb; border-left: 2pt solid #1f3a5f;
+          padding: 1.4mm 2.2mm; margin: 1.5mm 0; color: #33405a; }
+  .cols { display: flex; gap: 6mm; }
+  .cols > div { flex: 1; }
+  footer { margin-top: 5mm; padding-top: 2.5mm; border-top: 0.5pt solid #c9d2e0;
+           color: #7b8496; font-size: 7.4pt; }
+  h2, table, .note { break-inside: avoid; }
+  /* A heading must never end a page with its content on the next one. */
+  h2 { break-after: avoid; }
+  .lede { break-after: avoid; }
+</style>
+</head>
+<body>
+
+<h1>CAPRI for iOS — Technical Documentation</h1>
+<p class="sub">React Native rewrite of the CAPRI productivity app</p>
+<p class="meta">Version 3.0.0 (build 25) &nbsp;·&nbsp; iOS 15.1+ &nbsp;·&nbsp; Ships as an update to the existing App Store listing — same bundle identifier and same subscription project, so current users and paying subscribers carry over untouched.</p>
+
+<h2><span class="n">1</span>Application architecture</h2>
+<p class="lede">The app was rebuilt from a web page running inside a wrapper into a genuine native iOS application. Screens are drawn by iOS itself rather than by a browser, which is what makes scrolling, typing and animation feel like the rest of the phone.</p>
+<table>
+<tr><td class="k">Framework</td><td>Bare React Native <span class="m">0.86.2</span> with React <span class="m">19.2.3</span>. No Expo — every native capability is compiled in directly, so nothing is limited by a third-party runtime.</td></tr>
+<tr><td class="k">Engine</td><td>New Architecture enabled (Fabric renderer + TurboModules) on the Hermes JavaScript engine. This is Apple-era React Native, not the legacy bridge.</td></tr>
+<tr><td class="k">Language</td><td>TypeScript in <span class="m">strict</span> mode throughout. No untyped files, functional code only — no classes.</td></tr>
+<tr><td class="k">Server data</td><td>TanStack Query v5. One cache, one set of keys, automatic refresh when the app returns to the foreground.</td></tr>
+<tr><td class="k">Device data</td><td>Zustand over MMKV (synchronous storage, so the theme is correct on the first frame). Credentials live in the iOS Keychain, never in MMKV.</td></tr>
+<tr><td class="k">Navigation</td><td>React Navigation 7 — native stack and bottom tabs, with universal-link and custom-scheme routing.</td></tr>
+<tr><td class="k">Styling</td><td>Unistyles 3 with a design-token system. Five colour moods × light and dark, switchable at runtime with no reload and no hard-coded colours anywhere in the components.</td></tr>
+<tr><td class="k">Code layout</td><td>Vertical feature slices — <span class="m">src/features/&lt;slice&gt;/{screens, components, hooks, logic, services}</span>. Everything under <span class="m">logic/</span> is pure: no React, no React Native, no network, so it is testable in isolation.</td></tr>
+<tr><td class="k">Test suite</td><td>639 automated tests across 68 suites, plus enforced limits on file and function size, run by a single <span class="m">npm run verify</span>.</td></tr>
+</table>
+
+<h2><span class="n">2</span>Local setup and build</h2>
+<table>
+<tr><td class="k">Prerequisites</td><td>Node.js with npm · Xcode with the iOS SDK · Ruby with Bundler (for CocoaPods) · JDK 17 if building Android</td></tr>
+<tr><td class="k">First run</td><td><span class="m">npm install</span> → <span class="m">npm run pods</span> → <span class="m">npm run ios</span></td></tr>
+<tr><td class="k">Daily use</td><td><span class="m">npm start</span> (Metro bundler) · <span class="m">npm run ios</span> · <span class="m">npm run android</span></td></tr>
+<tr><td class="k">Quality gates</td><td><span class="m">npm run typecheck</span> · <span class="m">npm run lint</span> · <span class="m">npm test</span> · <span class="m">npm run verify</span> runs all three</td></tr>
+<tr><td class="k">Release build</td><td>Xcode → CAPRI scheme → Any iOS Device → Product ▸ Archive → distribute to App Store Connect</td></tr>
+</table>
+<div class="note"><strong>Two environment quirks, both documented in the repository README.</strong> The project folder name contains brackets, which Ruby refuses to read unless <span class="m">LANG=en_US.UTF-8</span> is set. And <span class="m">xcode-select</span> must point at Xcode rather than the Command Line Tools, or <span class="m">xcodebuild</span> is unavailable. Both have one-line fixes in the README.</div>
+
+<h2><span class="n">3</span>Environment configuration</h2>
+<p class="lede">There is no <span class="m">.env</span> file and no runtime configuration lookup — a deliberate decision. Bare React Native has no equivalent of Expo's config system, so values live as typed constants that the compiler checks and the tests guard.</p>
+<table>
+<tr><td class="k"><span class="m">config/base44.config.ts</span></td><td>Backend application id, base URL, and the app's custom URL scheme (<span class="m">capri</span>). None are secret — all three are already public in the shipped web client.</td></tr>
+<tr><td class="k"><span class="m">config/constants.ts</span></td><td>Data-freshness policy: 30-second staleness, 2 retries, 24-hour cache retention.</td></tr>
+<tr><td class="k"><span class="m">config/plans.ts</span></td><td>Which features belong to which subscription tier, in one place.</td></tr>
+<tr><td class="k">Drift protection</td><td><span class="m">configConstants.test.ts</span> fails the build if the bundle identifier or URL scheme in these files stops matching <span class="m">Info.plist</span> and <span class="m">AndroidManifest.xml</span> — a class of bug that is otherwise invisible until sign-in breaks in production.</td></tr>
+<tr><td class="k">Secrets</td><td>Nothing secret is compiled into the app. The subscription SDK key is a publishable key by design; the notification signing key exists only on the server.</td></tr>
+</table>
+
+<h2><span class="n">4</span>Base44 backend integration</h2>
+<p class="lede">All application data lives in Base44. The app talks to it in two ways: typed record access, and named server functions for anything that needs to run privately.</p>
+<table>
+<tr><td class="k">Records</td><td>Typed wrappers for <span class="m">Task</span>, <span class="m">Commitment</span>, <span class="m">User</span>, <span class="m">FocusTime</span>, <span class="m">AIUsageLog</span> and <span class="m">PushDevice</span>. Every query key is generated from one factory, so an update can never miss a cache through a mistyped string.</td></tr>
+<tr><td class="k">Server functions</td><td><span class="m">invokeAI</span> · <span class="m">autoScheduleTasks</span> · <span class="m">getUserCalendarEvents</span> · <span class="m">importCalendarEvents</span> · <span class="m">syncTasksToCalendar</span> · <span class="m">registerPushToken</span> · <span class="m">sendPushNotification</span> · <span class="m">sendSupportEmail</span> · <span class="m">deleteAccount</span> · <span class="m">reconcileEntitlement</span> · <span class="m">dailyPrioritiesWidget</span></td></tr>
+<tr><td class="k">AI gating</td><td>Paid capability is enforced on the server — <span class="m">invokeAI</span> reads the stored plan and refuses paid features. The app's checks are for presentation only, so the rule cannot be bypassed from the device.</td></tr>
+<tr><td class="k">Offline reads</td><td>The task cache is written to device storage on every change and restored before the first frame: versioned, expiring after 24 hours, and erased on sign-out.</td></tr>
+<tr><td class="k">Failure behaviour</td><td>Independent data sources settle separately, so one unavailable source degrades its own section rather than blanking the screen.</td></tr>
+</table>
+
+<h2><span class="n">5</span>Authentication</h2>
+<p class="lede">Two ways in, sharing one session.</p>
+<table>
+<tr><td class="k">Email</td><td>Direct API sign-in and registration, with one-time-code verification and password reset. No browser involved.</td></tr>
+<tr><td class="k">Google / Apple</td><td>Runs in <span class="m">ASWebAuthenticationSession</span>, Apple's secure system browser. This is required, not preferred: Google refuses to complete sign-in inside an embedded web view. Because the backend cannot redirect to a private URL scheme, it returns to a page on its own domain which hands the session back to the app as <span class="m">capri://auth</span>.</td></tr>
+<tr><td class="k">Storage</td><td>The session token is held in the iOS Keychain, in a shared access group so the widget can read it without a second copy existing anywhere on disk.</td></tr>
+<tr><td class="k">Session life</td><td>Renewed silently before expiry. A rejected session clears the in-memory cache, the saved offline cache and the widget's data together, so no trace of one account survives into the next.</td></tr>
+</table>
+
+<h2><span class="n">6</span>Subscriptions — RevenueCat</h2>
+<table>
+<tr><td class="k">SDK</td><td><span class="m">react-native-purchases</span> 10.7, configured with the publishable iOS key.</td></tr>
+<tr><td class="k">Entitlement</td><td><span class="m">capri_executive</span>, sold as <span class="m">capri_executive_monthly</span> and <span class="m">capri_executive_annual</span>.</td></tr>
+<tr><td class="k">Continuity</td><td>The same RevenueCat project, key and entitlement as the previous app — an existing subscriber is recognised immediately and is never asked to buy again.</td></tr>
+<tr><td class="k">Pricing display</td><td>Prices are read live from the App Store and shown on the buttons in the user's own currency, rather than being discovered only at the payment sheet.</td></tr>
+<tr><td class="k">Source of truth</td><td>The server decides. A RevenueCat webhook writes the plan onto the user record; at each sign-in <span class="m">reconcileEntitlement</span> re-checks and repairs the plan if a webhook was ever missed.</td></tr>
+<tr><td class="k">Failure behaviour</td><td>A cancelled purchase does nothing. An unavailable store, a missing product or a network failure each produce a plain sentence for the buyer — no technical text reaches the screen.</td></tr>
+<tr><td class="k">Android</td><td>No Google Play key exists, so purchasing reports itself unavailable rather than failing with an opaque SDK error.</td></tr>
+</table>
+
+<h2><span class="n">7</span>Push notifications</h2>
+<p class="lede">Notifications are sent by the server straight to Apple. There is no third-party delivery service in the path.</p>
+<table>
+<tr><td class="k">Transport</td><td>Apple Push Notification service over HTTP/2, authenticated with a signed token (ES256) generated and cached by the backend. Firebase is present in the app for one purpose only — asking iOS for the device's address — and never carries a message.</td></tr>
+<tr><td class="k">Device registry</td><td>A <span class="m">PushDevice</span> record per device: owner, platform, provider, address, environment and enabled state. This replaced a single field on the user record, which silently discarded every token and allowed only one device per person.</td></tr>
+<tr><td class="k">Environments</td><td>Each device records whether it is a development or production build, so Apple's two separate address spaces are handled per device rather than by one global switch that is always wrong for half the fleet.</td></tr>
+<tr><td class="k">Reminders</td><td>A scheduled sweep sends 30 minutes and 10 minutes before a start time, once each, silently during the user's quiet hours, evaluated in their own timezone.</td></tr>
+<tr><td class="k">Silent updates</td><td>A second, invisible message type wakes the app briefly to refresh the home-screen widget. Held for up to fifteen minutes and compared against a fingerprint of the last send, so an afternoon of edits produces one message rather than thirty.</td></tr>
+<tr><td class="k">Housekeeping</td><td>Apple reporting a device as gone disables that record automatically; temporary failures are retried with a backoff. Extending to Android is a second provider in the router — nothing that sends a notification would change.</td></tr>
+</table>
+
+<h2><span class="n">8</span>Native modules</h2>
+<p class="lede">Three small Swift components were written for capabilities React Native does not provide, each exposed through a thin Objective-C bridge.</p>
+<table>
+<tr><td class="k"><span class="m">CapriAppGroup</span></td><td>Reads and writes the storage area shared between the app and its widget, and asks iOS to redraw the widget.</td></tr>
+<tr><td class="k"><span class="m">CapriDeepLink</span></td><td>Holds the destination from a tapped notification until the app has finished starting, then hands it over — which is what makes a tap work from a cold launch rather than only when the app is already running.</td></tr>
+<tr><td class="k"><span class="m">CapriStartup</span></td><td>Records the moment of launch and reports how long the app took to become usable, so startup performance can be measured rather than estimated.</td></tr>
+<tr><td class="k">App delegate</td><td>Owns the notification delegate directly, forwarding to any previously installed handler. This is necessary because messages sent straight to Apple carry none of the markers a third-party SDK looks for, so its callbacks cannot be relied upon.</td></tr>
+</table>
+
+<h2><span class="n">9</span>Widget architecture</h2>
+<table>
+<tr><td class="k">Extension</td><td>A WidgetKit extension, <span class="m">CapriWidgetExtension</span>, offering the Daily Priorities widget in small and medium sizes.</td></tr>
+<tr><td class="k">Data path</td><td>The app writes a compact snapshot of the current priorities into shared storage whenever they change. The widget reads that directly, so it draws instantly, works with no signal, and always agrees with the app about what to start.</td></tr>
+<tr><td class="k">Fallback</td><td>If no snapshot exists — a freshly installed widget — it fetches from the backend using the shared Keychain session, rather than keeping its own copy of the user's credentials.</td></tr>
+<tr><td class="k">Refresh policy</td><td>A single owner triggers each redraw, so one change costs one refresh rather than two. iOS limits how often a widget may update, so this directly determines how current it stays across a day. A half-hourly timeline covers ordinary use; server-sent silent updates cover the app being closed.</td></tr>
+<tr><td class="k">Deep links</td><td>The widget as a whole, and each row on the medium size, opens the specific task it names.</td></tr>
+</table>
+
+<h2><span class="n">10</span>App Store configuration</h2>
+<table>
+<tr><td class="k">Identifiers</td><td>App <span class="m">com.base69aa4c4d4f33993320ae7f08.app</span> · Widget <span class="m">…app.CapriWidget</span> · Team <span class="m">6672DRVT87</span></td></tr>
+<tr><td class="k">Build settings</td><td>Version 3.0.0 (25), minimum iOS 15.1. Debug builds sign for Apple's development notification environment, Release builds for production — matched automatically by the device registry described in section 7.</td></tr>
+<tr><td class="k">Capabilities</td><td>App Group (shared with the widget) · Keychain sharing · Associated Domains for <span class="m">capriforlifev1.base44.app</span> · Push Notifications · Background delivery of silent messages</td></tr>
+<tr><td class="k">Review compliance</td><td>Account deletion available inside the app · Terms and Privacy linked from the subscription screen · Prices shown before purchase · Encryption declaration set · All permission prompts carry a plain-language reason</td></tr>
+<tr><td class="k">Upgrade path</td><td>Because the bundle identifier, subscription project and widget kind are unchanged, this installs over the existing app: sessions persist, subscriptions persist, and a widget placed on a home screen months ago keeps working.</td></tr>
+</table>
+
+<footer>CAPRI for iOS — technical documentation accompanying the milestone delivery. Prepared 9 September 2026. Describes the application as implemented.</footer>
+
+</body>
+</html>
