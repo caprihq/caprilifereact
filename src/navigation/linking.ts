@@ -1,32 +1,26 @@
+import { AppState, Linking } from 'react-native'
 import type { LinkingOptions } from '@react-navigation/native'
 
 import { base44Config } from '@/config'
+import { TASK_LINK_PATH } from '../../modules/capri-deep-link/constants'
+import { takePendingLink } from '../../modules/capri-deep-link'
 import type { RootStackParamList } from './types'
 
 /**
- * Deep links into the app.
+ * Every way into a screen from outside the app.
  *
- * Base44 emails password-reset links pointing at its own hosted client
- * (`…/reset-password?token=…`), and for a long time that looked like the end of the
- * story: claiming links on a domain you do not control needs association files served
- * from it. It turns out Base44 already serves them, for this exact app:
+ * Three surfaces open a task — a tapped reminder, a tapped widget, and a shared
+ * link — and all three go through here as the same URL. That is the point: one
+ * route table, one set of rules about what a link means, rather than a bespoke
+ * navigation path per surface.
  *
- *   /.well-known/assetlinks.json                → com.base69aa4c4d4f33993320ae7f08.app
- *   /.well-known/apple-app-site-association     → 6672DRVT87.com.base69…app, paths ["*"]
+ * Base44 serves `apple-app-site-association` with `paths: ["*"]` for this bundle id,
+ * so `https://capriforlifev1.base44.app/task/<id>` already reaches the app with no
+ * change on the server.
  *
- * So the link can open the app instead of a browser, and the reset finishes without
- * leaving CAPRI. The declarations that make it work live outside this file — the
- * associated-domains entitlement on iOS, an `autoVerify` intent filter on Android —
- * and `configConstants.test.ts` keeps all three in step.
- *
- * **Only the reset path is claimed.** The association file offers `paths: ["*"]`, and
- * taking all of it would mean the app intercepting every link to the web client,
- * including its own OAuth bounce page — which would break sign-in for anyone who
- * still uses the web app.
- *
- * The `capri://` scheme is listed too. It already exists for the OAuth callback, and
- * accepting `capri://reset-password?token=…` costs nothing while giving the web page
- * a way to hand off deliberately if that is ever wanted.
+ * A task link only resolves while signed in — the App stack does not exist
+ * otherwise, and React Navigation quietly drops it. That is the correct outcome for
+ * a link to someone's private task, if not a friendly one.
  */
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [`${base44Config.authCallbackScheme}://`, base44Config.appBaseUrl],
@@ -38,6 +32,57 @@ export const linking: LinkingOptions<RootStackParamList> = {
           ResetPassword: 'reset-password',
         },
       },
+      App: {
+        /**
+         * Put the tabs under a linked screen.
+         *
+         * Without this, opening `capri://task/<id>` builds a stack holding only
+         * TaskDetail — React Navigation does not insert a parent on its own. The
+         * sheet then has nothing beneath it, so its close button raised
+         * "The action 'GO_BACK' was not handled by any navigator" and the user was
+         * stuck on the task with no way back to the app.
+         */
+        initialRouteName: 'Tabs',
+        screens: {
+          TaskDetail: `${TASK_LINK_PATH}/:taskId`,
+        },
+      },
     },
+  },
+
+  /**
+   * A cold launch has two possible sources: a real URL open, and a notification tap
+   * that the app delegate parked because React was not running yet.
+   */
+  async getInitialURL() {
+    return (await Linking.getInitialURL()) ?? (await takePendingLink())
+  },
+
+  /**
+   * Live links, from the same two sources.
+   *
+   * The parked link is drained on every foreground rather than pushed from native,
+   * because a tap that happens while the app is backgrounded resumes it — and
+   * resuming is a moment JavaScript can observe reliably, unlike bridge readiness.
+   */
+  subscribe(listener) {
+    const urlSubscription = Linking.addEventListener('url', ({ url }) => {
+      listener(url)
+    })
+
+    const drain = () => {
+      void takePendingLink().then((url) => {
+        if (url) listener(url)
+      })
+    }
+
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') drain()
+    })
+
+    return () => {
+      urlSubscription.remove()
+      appStateSubscription.remove()
+    }
   },
 }

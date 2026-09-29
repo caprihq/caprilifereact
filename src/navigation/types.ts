@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native'
+
 /** Navigator param lists. Exported so `useNavigation` is typed everywhere. */
 
 export type AuthStackParamList = {
@@ -62,7 +64,6 @@ export type AppStackParamList = {
   AutoSchedule: undefined
   Tabs: undefined
   AddTask: undefined
-  AddCommitment: undefined
   TaskDetail: { taskId: string }
   Planner: undefined
   Plan: undefined
@@ -82,9 +83,18 @@ export type AppNavigation = {
   readonly goBack: () => void
 }
 
+/**
+ * The root, declared so the stacks nested inside it are typed as navigators.
+ *
+ * `NavigatorScreenParams` rather than `undefined`: the root's two entries are
+ * navigators, not screens, and typing them as leaves left the deep-link
+ * configuration unchecked — `initialRouteName` under `App` could not be written at
+ * all, which is what allowed a linked screen to open with an empty stack beneath it.
+ * It also types `navigate('App', { screen: … })` for a caller that needs it.
+ */
 export type RootStackParamList = {
-  Auth: undefined
-  App: undefined
+  Auth: NavigatorScreenParams<AuthStackParamList> | undefined
+  App: NavigatorScreenParams<AppStackParamList> | undefined
 }
 
 declare global {
