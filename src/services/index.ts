@@ -3,3 +3,10 @@ export * from './api'
 export * from './storage'
 export * from './native'
 export { initCrashReporting, setCrashUser, reportError } from './crash/crashlytics'
+export {
+  initAnalytics,
+  setAnalyticsUser,
+  setPlanProperty,
+  track,
+  trackScreen,
+} from './analytics/analytics'
