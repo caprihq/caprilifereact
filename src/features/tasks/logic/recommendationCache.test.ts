@@ -1,11 +1,14 @@
 import {
   CACHE_TTL_MS,
   FREE_REFRESH_LIMIT,
+  RECOMMENDATION_COUNT,
   canRefresh,
   fallbackRecommendations,
+  hasNewCandidates,
   hydrate,
   isFresh,
   refreshCountKey,
+  topUpEntries,
 } from './recommendationCache'
 import type { CacheEntry } from './recommendationCache'
 import type { Task } from '@/types/entities'
@@ -79,5 +82,97 @@ describe('fallbackRecommendations', () => {
     // Four: the Start Here hero plus three Up Next rows, from one answer.
     expect(fallback).toHaveLength(4)
     expect(fallback[0]).toEqual({ task_id: 'a', reason: 'why a' })
+  })
+})
+
+describe('topUpEntries', () => {
+  const entry = (id: string) => ({ task: { id } as Task, reason: 'r' })
+
+  it('keeps the model\'s order and fills the rest from the local ranking', () => {
+    // The whole point: a short answer must not leave the queue empty.
+    const result = topUpEntries([entry('b')], [entry('a'), entry('b'), entry('c')])
+
+    expect(result.map((e) => e.task.id)).toEqual(['b', 'a', 'c'])
+  })
+
+  it('never lists the same task twice', () => {
+    const result = topUpEntries([entry('a')], [entry('a')])
+
+    expect(result.map((e) => e.task.id)).toEqual(['a'])
+  })
+
+  it('falls back entirely to local when nothing survived hydration', () => {
+    // Every cached recommendation pointed at a task since deleted.
+    const result = topUpEntries([], [entry('a'), entry('b')])
+
+    expect(result.map((e) => e.task.id)).toEqual(['a', 'b'])
+  })
+
+  it('leaves a full answer untouched', () => {
+    const full = [entry('a'), entry('b'), entry('c'), entry('d')]
+
+    expect(topUpEntries(full, [entry('e')])).toEqual(full)
+  })
+
+  it('never returns more than the limit', () => {
+    const result = topUpEntries([entry('a')], [entry('b'), entry('c'), entry('d'), entry('e')])
+
+    expect(result).toHaveLength(RECOMMENDATION_COUNT)
+  })
+
+  it('returns nothing when there is nothing anywhere', () => {
+    expect(topUpEntries([], [])).toEqual([])
+  })
+})
+
+describe('hasNewCandidates', () => {
+  const task = (id: string) => ({ id }) as Task
+  const entry = (candidateIds?: readonly string[]) =>
+    ({ recommendations: [], cachedAtMs: 0, tier: 'free', candidateIds }) as CacheEntry
+
+  it('spots a task created since the ranking was made', () => {
+    // The whole reason this exists: a task added after the last answer was landing
+    // at the bottom of Up Next however urgent it was.
+    expect(hasNewCandidates(entry(['a', 'b']), [task('a'), task('b'), task('c')])).toBe(true)
+  })
+
+  it('is quiet when the same tasks are still there', () => {
+    expect(hasNewCandidates(entry(['a', 'b']), [task('a'), task('b')])).toBe(false)
+  })
+
+  it('ignores a task that disappeared', () => {
+    // Completing something must not spend a model call; hydrate and topUp cover it.
+    expect(hasNewCandidates(entry(['a', 'b']), [task('a')])).toBe(false)
+  })
+
+  it('treats an entry from an older build as current', () => {
+    // No recorded list is not the same as an empty one — re-asking for every user on
+    // the first launch after an update would be a needless burst of traffic.
+    expect(hasNewCandidates(entry(undefined), [task('a')])).toBe(false)
+  })
+
+  it('has nothing to compare without an entry', () => {
+    expect(hasNewCandidates(null, [task('a')])).toBe(false)
+  })
+})
+
+describe('topUpEntries — a task that has gone', () => {
+  const entry = (id: string) => ({ task: { id } as Task, reason: 'r' })
+
+  it('is how a deleted task leaves the screen in the same render', () => {
+    // `useUpNext` filters its stored answer against the live task list and feeds the
+    // survivors through here. With none left, `local` is empty too, so the hero
+    // becomes null and Start Here says so — rather than going on showing a task the
+    // user just deleted.
+    expect(topUpEntries([], [])).toEqual([])
+  })
+
+  it('promotes the next task when the one in front is deleted', () => {
+    const survivors = [entry('b')]
+
+    expect(topUpEntries(survivors, [entry('b'), entry('c')]).map((e) => e.task.id)).toEqual([
+      'b',
+      'c',
+    ])
   })
 })

@@ -1,7 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 import Ionicons from 'react-native-vector-icons/Ionicons'
 
-import { Card } from '@/components/Card'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import type { TimeSlot } from '../logic/timeSlots'
@@ -75,13 +74,12 @@ export const PlannerSlot = ({
         </Pressable>
       </View>
 
-      {count === 0 ? (
-        <Card>
-          <Text variant="caption" tone="muted" align="center">
-            Nothing scheduled
-          </Text>
-        </Card>
-      ) : (
+      {/*
+        An empty slot draws nothing. The header already says "0 items" and offers
+        the plus; a card underneath repeating "Nothing scheduled" turned an empty
+        day into three stacked announcements of failure.
+      */}
+      {count === 0 ? null : (
         <View style={{ gap: theme.spacing.sm }}>
           {tasks.map((task) => (
             <PlannerTaskRow

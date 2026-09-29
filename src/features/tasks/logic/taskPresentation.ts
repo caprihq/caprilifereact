@@ -9,20 +9,33 @@ import type { Task } from '@/types/entities'
  * each kept their own copy of these maps.
  */
 
-/** Category glyphs, matching the web client so the two apps read alike. */
-const CATEGORY_EMOJI: Readonly<Record<string, string>> = {
-  work: '💼',
-  personal: '🏠',
-  health: '💪',
-  finance: '💰',
-  learning: '📚',
-  errands: '🛒',
-  social: '👥',
+/**
+ * Category icons.
+ *
+ * Outlined Ionicons rather than the web client's emoji. Emoji do not render on every
+ * iOS build — they arrive as a box with a question mark wherever the font is
+ * incomplete, which is every task row on the affected devices — and they cannot be
+ * themed: an emoji stays its own colour while the rest of the row follows the user's
+ * accent. An icon is drawn from the same font as every other glyph in the app, at the
+ * text colour it sits beside.
+ */
+const CATEGORY_ICON: Readonly<Record<string, string>> = {
+  work: 'briefcase-outline',
+  personal: 'home-outline',
+  health: 'fitness-outline',
+  finance: 'wallet-outline',
+  learning: 'book-outline',
+  errands: 'cart-outline',
+  social: 'people-outline',
 }
 
-/** Takes only what it reads, so an unsaved draft can be shown with the same glyph. */
-export const emojiFor = (task: { readonly category?: string | undefined }): string =>
-  CATEGORY_EMOJI[task.category ?? ''] ?? '📌'
+/**
+ * The icon for a task's category, falling back to a plain tag.
+ *
+ * Takes only what it reads, so an unsaved draft can be shown with the same glyph.
+ */
+export const iconFor = (task: { readonly category?: string | undefined }): string =>
+  CATEGORY_ICON[task.category ?? ''] ?? 'pricetag-outline'
 
 export type PriorityBand = 'critical' | 'high' | 'medium' | 'low'
 

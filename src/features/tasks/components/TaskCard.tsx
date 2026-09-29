@@ -3,13 +3,13 @@ import Ionicons from 'react-native-vector-icons/Ionicons'
 
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
+import { CategoryIcon } from './CategoryIcon'
 import type { AppTheme } from '@/theme'
 import type { Task } from '@/types/entities'
 import {
   PRIORITY_LABEL,
   bandFor,
   durationLabel,
-  emojiFor,
   subtaskProgress,
   subtitleFor,
 } from '../logic/taskPresentation'
@@ -64,6 +64,9 @@ export const TaskCard = ({ task, nowMs, timeZone, onPress, onToggle }: TaskCardP
     opacity: done ? 0.6 : 1,
   }
 
+  /** A finished task shows its title and nothing else — see the body below. */
+  const detail = done ? null : subtitle
+
   const Shell = onPress ? Pressable : View
 
   return (
@@ -77,44 +80,70 @@ export const TaskCard = ({ task, nowMs, timeZone, onPress, onToggle }: TaskCardP
           and it leaves the surface to the theme. */}
       <View style={[styles.rail, { backgroundColor: rail }]} />
 
-      <View style={[styles.body, { padding: theme.spacing.lg, gap: theme.spacing.xs }]}>
+      <View
+        style={[
+          styles.body,
+          { padding: done ? theme.spacing.md : theme.spacing.lg, gap: theme.spacing.xs },
+        ]}
+      >
         <View style={[styles.titleRow, { gap: theme.spacing.sm }]}>
-          {onToggle ? (
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: done }}
-              accessibilityLabel={done ? 'Mark not done' : 'Mark done'}
-              onPress={onToggle}
-              hitSlop={theme.spacing.md}
-            >
-              <Ionicons
-                name={done ? 'checkmark-circle' : 'ellipse-outline'}
-                size={24}
-                color={done ? theme.colors.success : theme.colors.border}
-              />
-            </Pressable>
-          ) : null}
+          {onToggle ? <DoneToggle done={done} onToggle={onToggle} /> : null}
 
           <Text
             variant="bodyStrong"
             numberOfLines={2}
             style={[styles.title, done && styles.struck]}
           >
-            {emojiFor(task)} {task.title}
+            <CategoryIcon task={task} /> {task.title}
           </Text>
         </View>
 
-        {subtitle ? (
-          <Text variant="caption" tone={subtitle.isReason ? 'accent' : 'muted'} numberOfLines={2}>
-            {subtitle.isReason ? `💡 ${subtitle.text}` : subtitle.text}
-          </Text>
+        {/*
+          A finished task keeps its title and nothing else.
+          
+          Completed tasks stay in All until they are deleted, so on a long-used
+          account they are most of the list — and at full height, with a reason line
+          and a chip row apiece, the history crowds out the work. The line that
+          explains why something matters has nothing to say once it is done.
+        */}
+        {detail ? (
+          <DetailLine detail={detail} />
         ) : null}
 
-        <ChipRow band={band} rail={rail} duration={duration} progress={progress} />
+        {done ? null : (
+          <ChipRow band={band} rail={rail} duration={duration} progress={progress} />
+        )}
 
         <TaskMeta task={task} nowMs={nowMs} timeZone={timeZone} />
       </View>
     </Shell>
+  )
+}
+
+/** The tick. Its own component so the card body stays under the branch budget. */
+const DoneToggle = ({
+  done,
+  onToggle,
+}: {
+  readonly done: boolean
+  readonly onToggle: () => void
+}) => {
+  const theme = useTheme()
+
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: done }}
+      accessibilityLabel={done ? 'Mark not done' : 'Mark done'}
+      onPress={onToggle}
+      hitSlop={theme.spacing.md}
+    >
+      <Ionicons
+        name={done ? 'checkmark-circle' : 'ellipse-outline'}
+        size={24}
+        color={done ? theme.colors.success : theme.colors.border}
+      />
+    </Pressable>
   )
 }
 
@@ -157,10 +186,41 @@ const ChipRow = ({
 
       {progress ? (
         <Text variant="caption" tone="muted">
-          ☑ {progress}
+          <Ionicons name="checkbox-outline" size={13} color={theme.colors.textMuted} /> {progress}
         </Text>
       ) : null}
     </View>
+  )
+}
+
+/**
+ * The line under a title: CAPRI's reason, or the task's own description.
+ *
+ * Its own component because the reason needs a leading icon and the description does
+ * not, and expressing that inline took the card past the complexity limit.
+ *
+ * The icon was 💡. Emoji box out wherever the system font is incomplete, and the line
+ * where CAPRI explains itself is the last place to show a missing glyph.
+ */
+const DetailLine = ({
+  detail,
+}: {
+  readonly detail: { readonly text: string; readonly isReason: boolean }
+}) => {
+  const theme = useTheme()
+
+  if (!detail.isReason) {
+    return (
+      <Text variant="caption" tone="muted" numberOfLines={2}>
+        {detail.text}
+      </Text>
+    )
+  }
+
+  return (
+    <Text variant="caption" tone="accent" numberOfLines={2}>
+      <Ionicons name="bulb-outline" size={13} color={theme.colors.accentInk} /> {detail.text}
+    </Text>
   )
 }
 

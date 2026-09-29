@@ -8,12 +8,15 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { UpgradePrompt, useUpgradePrompt } from '@/features/profile'
 import { LoadingView } from '@/components/LoadingView'
 import { Text } from '@/components/Text'
+import { useContentBottom } from '@/hooks/useContentBottom'
 import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
 import { usePlan } from '@/hooks/usePlan'
 import type { AppNavigation } from '@/navigation/types'
 import type { Task } from '@/types/entities'
 import { usePlannerDay } from '../hooks/usePlannerDay'
+import { useCurrentUser } from '@/services/api'
+import { planningWindow } from '../logic/planningWindow'
 import { useTaskFeed } from '../hooks/useTaskFeed'
 import { PlannerSlot } from '../components/PlannerSlot'
 import { PlannerAside } from '../components/PlannerAside'
@@ -28,22 +31,37 @@ import { SlotTaskPicker } from '../components/SlotTaskPicker'
  * older. Grouping and scheduling rules are pure and tested — see `timeSlots` and
  * `plannerLogic`.
  */
+/**
+ * Pull-to-refresh, waiting for the data.
+ *
+ * Awaited on purpose: setting the flag true and false in one tick batches into a
+ * single render, so the control snaps back before the refetch has left the device
+ * and the pull looks like it did nothing. Its own hook so the screen body stays
+ * inside the 80-line limit (§3.2).
+ */
+const usePullToRefresh = (refetch: () => Promise<void>) => {
+  const [refreshing, setRefreshing] = useState(false)
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await refetch()
+    setRefreshing(false)
+  }, [refetch])
+
+  return { refreshing, onRefresh }
+}
+
 export const PlannerScreen = () => {
   const theme = useTheme()
+  const contentBottom = useContentBottom()
   const wash = useWash()
   const navigation = useNavigation<AppNavigation>()
+  const { data: user } = useCurrentUser()
   const feed = useTaskFeed()
   const { hasAccess } = usePlan()
   const planner = usePlannerDay(feed)
   const upgrade = useUpgradePrompt()
-  const [refreshing, setRefreshing] = useState(false)
-
-  /** Same as Home and All tasks: the spinner waits for the data. */
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await feed.refetch()
-    setRefreshing(false)
-  }, [feed])
+  const { refreshing, onRefresh } = usePullToRefresh(feed.refetch)
 
   const open = useCallback(
     (task: Task) => navigation.navigate('TaskDetail', { taskId: task.id }),
@@ -67,8 +85,14 @@ export const PlannerScreen = () => {
 
   return (
     <ScrollView
-      contentContainerStyle={[wash, styles.page, { gap: theme.spacing.xl }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
+      contentContainerStyle={[
+        wash,
+        styles.page,
+        { gap: theme.spacing.xl, paddingBottom: contentBottom },
+      ]}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
+      }
     >
       <Button label="Smart Auto-Schedule" onPress={autoSchedule} />
 
@@ -101,6 +125,7 @@ export const PlannerScreen = () => {
         tasks={planner.day.needsAttention}
         tone="warning"
         onOpen={open}
+        onSeeAll={() => navigation.navigate('AllTasks')}
       />
 
       <PlannerAside
@@ -109,10 +134,11 @@ export const PlannerScreen = () => {
         tasks={planner.day.overdue}
         tone="muted"
         onOpen={open}
+        onSeeAll={() => navigation.navigate('AllTasks')}
       />
 
       <Text variant="caption" tone="muted" align="center">
-        CAPRI plans between 9am and 6pm.
+        {planningWindow(user)}
       </Text>
 
       <ConfirmDialog {...planner.completionPrompt} />

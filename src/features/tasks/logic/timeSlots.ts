@@ -73,7 +73,14 @@ export const slotKeyFor = (task: Task, timeZone: string): SlotKey | null => {
 }
 
 export type ScheduleWindow = {
-  readonly due_date: string
+  /**
+   * Optional, because scheduling must not rewrite a deadline.
+   *
+   * Set only when the task had none. A task already due Friday and planned for
+   * Tuesday keeps Friday — writing the start here is what silently replaced real
+   * deadlines with the day CAPRI happened to pick.
+   */
+  readonly due_date?: string
   readonly scheduled_start_time: string
   readonly scheduled_end_time: string
 }

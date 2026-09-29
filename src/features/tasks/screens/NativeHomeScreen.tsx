@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useEffect, useCallback, useMemo, useState } from 'react'
 import { size } from '@/theme'
 import { RefreshControl, ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -7,16 +7,19 @@ import { useNavigation } from '@react-navigation/native'
 import { ErrorView } from '@/components/ErrorView'
 import { LoadingView } from '@/components/LoadingView'
 import { useConfirmExit } from '@/hooks/useHardwareBack'
-import { useTheme } from '@/hooks/useTheme'
+import { useContentBottom } from '@/hooks/useContentBottom'
 import { useWash } from '@/hooks/useWash'
 import { loadSignals } from '../logic/signalsStore'
 import type { AppNavigation } from '@/navigation/types'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { OfflineNotice } from '@/components/OfflineNotice'
 import { OnboardingSheet, useOnboarding } from '@/features/onboarding'
 import { AddTaskButton } from '../components/AddTaskButton'
 import { useHomeActions } from '../hooks/useHomeActions'
 import { useTaskFeed } from '../hooks/useTaskFeed'
 import { useUpNext } from '../hooks/useUpNext'
+import { useWidgetSnapshot } from '../hooks/useWidgetSnapshot'
+import { reportTimeToUsable } from '@/services/startup/startupTiming'
 import { HomeHeader } from '../components/HomeHeader'
 import { HomeSections } from '../components/HomeSections'
 
@@ -27,7 +30,7 @@ import { HomeSections } from '../components/HomeSections'
  * tabs. Actions and their behavioural signals live in useHomeActions.
  */
 export const NativeHomeScreen = () => {
-  const theme = useTheme()
+  const contentBottom = useContentBottom(true)
 
   // Back here would otherwise finish the activity, which reads as a crash.
   useConfirmExit()
@@ -48,6 +51,23 @@ export const NativeHomeScreen = () => {
   // the hero the user actually saw.
   const actions = useHomeActions(feed, upNext.hero?.task.id ?? feed.heroTask?.id ?? null)
   const onboarding = useOnboarding()
+
+  // The first moment the app is usable rather than merely visible.
+  useEffect(() => {
+    if (!feed.isLoading) void reportTimeToUsable('home')
+  }, [feed.isLoading])
+
+  // Hand the home-screen widget exactly what this screen is showing, so the two can
+  // never disagree about what to start.
+  useWidgetSnapshot({
+    hero: upNext.hero?.task ?? feed.heroTask,
+    upNext: upNext.entries.map((entry) => entry.task),
+    // Everything CAPRI may rank, not just the four on screen: the widget says
+    // "+N more" from this.
+    totalOpen: feed.actionable.length,
+    nowMs: feed.nowMs,
+    ready: !feed.isLoading && !feed.isError,
+  })
   const [refreshing, setRefreshing] = useState(false)
 
   // Read once per pass and shared by every reason line, rather than each
@@ -89,10 +109,12 @@ export const NativeHomeScreen = () => {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: size.screenPadding,
-          paddingBottom: theme.spacing.xxxl * 2,
+          // Clears the translucent native tab bar and the home indicator.
+          paddingBottom: contentBottom,
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
       >
+        {feed.isShowingSaved ? <OfflineNotice /> : null}
         <HomeSections feed={feed} signals={signals} actions={actions} upNext={upNext} />
       </ScrollView>
 

@@ -47,13 +47,31 @@ export const HeroCard = ({
   if (!task) {
     return (
       <Card>
-        <EmptyState message="No pending tasks" glyph="🎉" />
+        <EmptyState message="No pending tasks" icon="checkmark-done-outline" />
       </Card>
     )
   }
 
   return (
-    <View style={{ borderRadius: theme.radius.xl, overflow: 'hidden' }}>
+    /**
+     * Ringed and lifted, because the whole premise is that this is *the* thing to do
+     * now — and until this it was the same white card as everything under Up Next,
+     * distinguishable only by the label above it. The design has to back the idea.
+     *
+     * A ring rather than a tint: the page already carries a colour wash, and filling
+     * the most important card with more of it loses the text rather than framing it.
+     */
+    <View
+      style={[
+        theme.elevation.high,
+        {
+          borderRadius: theme.radius.xl,
+          overflow: 'hidden',
+          borderWidth: 2,
+          borderColor: theme.colors.accent,
+        },
+      ]}
+    >
       <SwipeableTaskRow
         onPress={() => onOpen(task)}
         onComplete={() => onComplete(task)}

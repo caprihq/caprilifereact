@@ -1,7 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import { Card } from '@/components/Card'
-import { EmptyState } from '@/components/EmptyState'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import type { BehaviouralSignals } from '@/features/tasks/logic/capriScoring'
@@ -14,6 +13,12 @@ import { SwipeableTaskRow } from './SwipeableTaskRow'
  * Free and paid users both get this list; the difference upstream is whether
  * the ranking came from the local scorer or an LLM pass (see FEATURE_PLANS —
  * `whats_next` is deliberately not gated).
+ *
+ * Never rendered empty: `HomeSections` drops the whole section, heading included,
+ * when there is nothing queued. A card reading "Nothing else queued" under a
+ * heading reading "Up Next" is two pieces of furniture describing the same absence,
+ * which is the pattern already removed from Today's Commitments and the planner
+ * slots.
  */
 
 type UpNextCardProps = {
@@ -38,14 +43,6 @@ export const UpNextCard = ({
   onCancel,
 }: UpNextCardProps) => {
   const theme = useTheme()
-
-  if (entries.length === 0) {
-    return (
-      <Card>
-        <EmptyState message="Nothing else queued" />
-      </Card>
-    )
-  }
 
   return (
     <Card flush>

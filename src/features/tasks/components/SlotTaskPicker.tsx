@@ -3,8 +3,8 @@ import { Pressable, ScrollView, StyleSheet } from 'react-native'
 import { Card } from '@/components/Card'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
+import { CategoryIcon } from './CategoryIcon'
 import type { Task } from '@/types/entities'
-import { emojiFor } from '../logic/taskPresentation'
 
 /**
  * The list of tasks that can be dropped into a block.
@@ -51,7 +51,7 @@ export const SlotTaskPicker = ({ tasks, onPick }: SlotTaskPickerProps) => {
             ]}
           >
             <Text variant="body" numberOfLines={1}>
-              {emojiFor(task)} {task.title}
+              <CategoryIcon task={task} /> {task.title}
             </Text>
           </Pressable>
         ))}

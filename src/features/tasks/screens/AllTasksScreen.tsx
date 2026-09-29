@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native'
 import { size } from '@/theme'
 
 import { Card } from '@/components/Card'
@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ErrorView } from '@/components/ErrorView'
 import { LoadingView } from '@/components/LoadingView'
 import { Text } from '@/components/Text'
+import { useContentBottom } from '@/hooks/useContentBottom'
 import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
 import { applyTaskFilter, emptyMessageFor } from '../logic/taskFilters'
@@ -31,6 +32,7 @@ import { TaskCard } from '../components/TaskCard'
  */
 export const AllTasksScreen = () => {
   const theme = useTheme()
+  const contentBottom = useContentBottom()
   const wash = useWash()
   const feed = useTaskFeed()
   const actions = useHomeActions(feed)
@@ -66,47 +68,68 @@ export const AllTasksScreen = () => {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={[wash, styles.page, { gap: theme.spacing.md }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
-    >
-      <FilterBar active={filter} onChange={setFilter} />
-
-      {visible.length === 0 ? (
-        <Card>
-          <Text variant="body" tone="muted" align="center">
-            {emptyMessageFor(filter)}
-          </Text>
-        </Card>
-      ) : (
-        <View style={{ gap: theme.spacing.sm }}>
-          {visible.map((task) => (
-            <SwipeableTaskRow
-              key={task.id}
-              completed={task.status === 'completed'}
-              onPress={() => actions.onOpen(task)}
-              onComplete={() => actions.onComplete(task)}
-              onDefer={() => actions.onDefer(task)}
-              onCancel={() => actions.onCancel(task)}
-              flush
-            >
-              <TaskCard
-                task={task}
-                nowMs={feed.nowMs}
-                timeZone={feed.timeZone}
-                onToggle={() => actions.onComplete(task)}
-              />
-            </SwipeableTaskRow>
-          ))}
-        </View>
-      )}
+    <View style={styles.fill}>
+      <FlatList
+        data={visible}
+        keyExtractor={(task) => task.id}
+        contentContainerStyle={[
+          wash,
+          styles.page,
+          { gap: theme.spacing.sm, paddingBottom: contentBottom },
+        ]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
+        }
+        ListHeaderComponent={
+          <View style={{ paddingBottom: theme.spacing.md }}>
+            <FilterBar active={filter} onChange={setFilter} />
+          </View>
+        }
+        ListEmptyComponent={
+          <Card>
+            <Text variant="body" tone="muted" align="center">
+              {emptyMessageFor(filter)}
+            </Text>
+          </Card>
+        }
+        renderItem={({ item: task }) => (
+          <SwipeableTaskRow
+            completed={task.status === 'completed'}
+            onPress={() => actions.onOpen(task)}
+            onComplete={() => actions.onComplete(task)}
+            onDefer={() => actions.onDefer(task)}
+            onCancel={() => actions.onCancel(task)}
+            flush
+          >
+            <TaskCard
+              task={task}
+              nowMs={feed.nowMs}
+              timeZone={feed.timeZone}
+              onToggle={() => actions.onComplete(task)}
+            />
+          </SwipeableTaskRow>
+        )}
+        /**
+         * Enough to fill any phone, and no more.
+         *
+         * This screen has no upper bound — the task cap is a free-plan limit, so a
+         * paid account can hold hundreds. Rendered flat, every row built its own
+         * `PanResponder` and `Animated` value for the swipe actions before the first
+         * frame could appear, which is a cost that grows linearly with how long
+         * someone has used the app.
+         */
+        initialNumToRender={12}
+        windowSize={7}
+        removeClippedSubviews={false}
+      />
 
       <ConfirmDialog {...actions.completionPrompt} />
-    </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
   /** Fills the viewport even when the list is short, so the wash reaches the bottom. */
   page: { flexGrow: 1, padding: size.screenPadding },
 })

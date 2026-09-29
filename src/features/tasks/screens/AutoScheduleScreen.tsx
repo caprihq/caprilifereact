@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { size } from '@/theme'
 
 import { Button } from '@/components/Button'
@@ -9,7 +8,9 @@ import { Card } from '@/components/Card'
 import { EmptyState } from '@/components/EmptyState'
 import { LoadingView } from '@/components/LoadingView'
 import { SheetHeader } from '@/components/SheetHeader'
+import { KeyboardAwareScroll } from '@/components/KeyboardAwareScroll'
 import { SheetNotice } from '@/components/Toast'
+import { UnplacedList } from '../components/UnplacedList'
 import { Text } from '@/components/Text'
 import { useFeedback } from '@/hooks/useFeedback'
 import { useTheme } from '@/hooks/useTheme'
@@ -43,10 +44,9 @@ export const AutoScheduleScreen = () => {
    * a sheet — and it draws its own header, so nothing else is insetting it. Without
    * this the close button sits under the clock.
    */
-  const insets = useSafeAreaInsets()
   const { show } = useFeedback()
   const feed = useTaskFeed()
-  const { run, running, suggestions, dismiss } = useAutoSchedule()
+  const { run, running, suggestions, unplaced, dismiss } = useAutoSchedule()
   const { updateTask } = useTaskMutations({ userEmail: feed.userEmail, onFeedback: show })
 
   useEffect(() => {
@@ -76,21 +76,24 @@ export const AutoScheduleScreen = () => {
   if (running) return <LoadingView message="Finding time for your work…" />
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        wash,
-        styles.page,
-        { gap: theme.spacing.md, paddingTop: insets.top + theme.spacing.md },
-      ]}
+    <KeyboardAwareScroll
+      fit
+      align="top"
+      contentStyle={[wash, styles.page, { gap: theme.spacing.md }]}
     >
       <SheetHeader title="Suggested plan" onClose={() => navigation.goBack()} />
 
       {/* Presented modally, so the floating toast renders behind this screen. */}
       <SheetNotice />
 
-      {suggestions.length === 0 ? (
+      {/*
+        "Nothing left to schedule" is only true when there is genuinely nothing. With
+        tasks that could not be fitted, it contradicts the list directly below it —
+        so the empty state yields to the explanation.
+      */}
+      {suggestions.length === 0 && unplaced.length === 0 ? (
         <Card>
-          <EmptyState message="Nothing left to schedule" glyph="🗓️" />
+          <EmptyState message="Nothing left to schedule" icon="calendar-outline" />
         </Card>
       ) : (
         suggestions.map((suggestion) => (
@@ -100,11 +103,14 @@ export const AutoScheduleScreen = () => {
             timeZone={feed.timeZone}
             onAccept={() => accept(suggestion)}
             onSkip={() => dismiss(suggestion.task_id)}
+            onEdit={() => navigation.navigate('TaskDetail', { taskId: suggestion.task_id })}
           />
         ))
       )}
 
-    </ScrollView>
+      {/* Below the proposals, because it is context rather than a decision. */}
+      <UnplacedList unplaced={unplaced} tasks={feed.allTasks} />
+    </KeyboardAwareScroll>
   )
 }
 
@@ -114,11 +120,13 @@ const SuggestionCard = ({
   timeZone,
   onAccept,
   onSkip,
+  onEdit,
 }: {
   readonly suggestion: Suggestion
   readonly timeZone: string
   readonly onAccept: () => void
   readonly onSkip: () => void
+  readonly onEdit: () => void
 }) => {
   const theme = useTheme()
   const when = new Date(suggestion.suggested_time)
@@ -141,7 +149,7 @@ const SuggestionCard = ({
           {label}
         </Text>
         {suggestion.reason ? (
-          <Text variant="caption" tone="muted" numberOfLines={2}>
+          <Text variant="body" tone="muted" numberOfLines={3}>
             {suggestion.reason}
           </Text>
         ) : null}
@@ -154,13 +162,39 @@ const SuggestionCard = ({
             <Button label="Skip" variant="ghost" onPress={onSkip} />
           </View>
         </View>
+
+        {/*
+          A third answer, because accept-or-skip is not the only one a person has:
+          disagreeing with the time left nowhere to go but dismissing the suggestion
+          and starting again from the planner. This opens the task itself, where the
+          duration, the day and the event switch live.
+
+          A link rather than a third full-height button. Three 52pt controls made the
+          buttons most of the card and pushed CAPRI's reasoning — the part worth
+          reading — into a thin grey line beneath them. Same pattern as
+          "Ask CAPRI again" on Home.
+        */}
+        <Pressable
+          accessibilityRole="button"
+          onPress={onEdit}
+          hitSlop={theme.spacing.sm}
+          style={({ pressed }) => [styles.edit, { opacity: pressed ? 0.6 : 1 }]}
+        >
+          <Text variant="label" tone="accent" align="center">
+            Edit details
+          </Text>
+        </Pressable>
       </View>
     </Card>
   )
 }
 
 const styles = StyleSheet.create({
-  page: { padding: size.screenPadding, paddingBottom: size.screenPadding * 2 },
+  // Even padding. A doubled bottom left 48pt of bare wash under the last card, and
+  // because the wash is a gradient that ends pale, it read as a band of a different
+  // colour rather than as space.
+  page: { padding: size.screenPadding },
   actions: { flexDirection: 'row' },
+  edit: { paddingTop: 10 },
   action: { flex: 1 },
 })

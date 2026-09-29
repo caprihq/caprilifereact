@@ -1,4 +1,4 @@
-import { bandFor, durationLabel, emojiFor, subtaskProgress, subtitleFor } from './taskPresentation'
+import { bandFor, durationLabel, iconFor, subtaskProgress, subtitleFor } from './taskPresentation'
 import type { Task } from '@/types/entities'
 
 const task = (overrides: Partial<Task> = {}): Task => ({
@@ -20,11 +20,17 @@ describe('bandFor', () => {
   })
 })
 
-describe('emojiFor', () => {
-  it('has a glyph for every category, and a fallback', () => {
-    expect(emojiFor(task({ category: 'work' }))).toBe('💼')
-    expect(emojiFor({ category: 'nonsense' })).toBe('📌')
-    expect(emojiFor(task())).toBe('📌')
+describe('iconFor', () => {
+  it('gives each category its own outlined icon', () => {
+    // Icons rather than emoji: emoji arrive as a box with a question mark wherever
+    // the system font is incomplete, which was every task row on some builds.
+    expect(iconFor(task({ category: 'work' }))).toBe('briefcase-outline')
+    expect(iconFor(task({ category: 'social' }))).toBe('people-outline')
+  })
+
+  it('falls back to a plain tag for anything unrecognised', () => {
+    expect(iconFor({ category: 'nonsense' })).toBe('pricetag-outline')
+    expect(iconFor(task())).toBe('pricetag-outline')
   })
 })
 

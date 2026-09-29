@@ -11,9 +11,12 @@ import {
   RECOMMENDATION_COUNT,
   canRefresh,
   fallbackRecommendations,
+  hasNewCandidates,
   hydrate,
   isFresh,
   refreshCountKey,
+  topUpEntries,
+  visibleEntries,
 } from '../logic/recommendationCache'
 import type { CacheEntry } from '../logic/recommendationCache'
 import { recommendTasks } from '../services/aiRecommendations'
@@ -66,17 +69,23 @@ const readCount = (nowMs: number): number =>
 export type UpNextEntry = { readonly task: Task; readonly reason: string }
 
 /** Store the answer so a remount inside the TTL costs nothing. */
-const remember = (
-  final: readonly UpNextEntry[],
-  cachedAtMs: number,
-  tier: 'free' | 'paid',
-): void => {
+/** Four values travel together, so they arrive as one (§3.2 max-params). */
+const remember = (entry: {
+  readonly final: readonly UpNextEntry[]
+  readonly cachedAtMs: number
+  readonly tier: 'free' | 'paid'
+  readonly candidateIds: readonly string[]
+}): void => {
   mmkvPrefStore.setString(
     CACHE_KEY,
     JSON.stringify({
-      recommendations: final.map((entry) => ({ task_id: entry.task.id, reason: entry.reason })),
-      cachedAtMs,
-      tier,
+      recommendations: entry.final.map((item) => ({
+        task_id: item.task.id,
+        reason: item.reason,
+      })),
+      cachedAtMs: entry.cachedAtMs,
+      tier: entry.tier,
+      candidateIds: entry.candidateIds,
     } satisfies CacheEntry),
   )
 }
@@ -97,6 +106,20 @@ export type UpNextRequest = {
   readonly timeZone: string
 }
 
+/**
+ * The local ranking, always available and always the fallback.
+ *
+ * Its own hook so `useUpNext` stays inside the 80-line limit (§3.2).
+ */
+const useLocalRanking = (shortlist: readonly Task[], nowMs: number): readonly UpNextEntry[] =>
+  useMemo(
+    () =>
+      shortlist
+        .slice(0, RECOMMENDATION_COUNT)
+        .map((task) => ({ task, reason: getTaskReason(task, nowMs) })),
+    [shortlist, nowMs],
+  )
+
 export const useUpNext = (request: UpNextRequest) => {
   const { candidates, shortlist, userEmail, nowMs, timeZone } = request
   const { show } = useFeedback()
@@ -107,14 +130,7 @@ export const useUpNext = (request: UpNextRequest) => {
   const [entries, setEntries] = useState<readonly UpNextEntry[]>([])
   const [loading, setLoading] = useState(false)
 
-  /** The local ranking, always available and always the fallback. */
-  const local = useMemo(
-    () =>
-      shortlist
-        .slice(0, RECOMMENDATION_COUNT)
-        .map((task) => ({ task, reason: getTaskReason(task, nowMs) })),
-    [shortlist, nowMs],
-  )
+  const local = useLocalRanking(shortlist, nowMs)
 
   const ask = useCallback(
     async (force: boolean) => {
@@ -142,10 +158,17 @@ export const useUpNext = (request: UpNextRequest) => {
       // Hydrated against the full set: the model may well pick something the local
       // pass left out of the shortlist, which is the point of asking it.
       const hydrated = hydrate(recommended ?? fallbackRecommendations(local), candidates)
-      const final = hydrated.length > 0 ? hydrated : local
+      // Topped up rather than replaced: a model that answers with fewer than it was
+      // asked for, or names tasks since deleted, used to empty the queue outright.
+      const final = topUpEntries(hydrated, local)
 
       setEntries(final)
-      remember(final, nowMs, tier)
+      remember({
+        final,
+        cachedAtMs: nowMs,
+        tier,
+        candidateIds: candidates.map((task) => task.id),
+      })
     },
     [candidates, contextSummary, local, nowMs, show, tier, userEmail],
   )
@@ -153,16 +176,20 @@ export const useUpNext = (request: UpNextRequest) => {
   const load = useCallback(
     (force: boolean) => {
       const cached = readCache()
-      if (!force && cached && isFresh(cached, nowMs, tier)) {
+      // A task added since the last ranking makes it stale, however recent it is:
+      // otherwise the new task lands at the end of Up Next no matter how urgent,
+      // and stays there until someone presses "Ask CAPRI again".
+      const stale = hasNewCandidates(cached, candidates)
+      if (!force && !stale && cached && isFresh(cached, nowMs, tier)) {
         const hydrated = hydrate(cached.recommendations, candidates)
         if (hydrated.length > 0) {
-          setEntries(hydrated)
+          setEntries(topUpEntries(hydrated, local))
           return
         }
       }
       void ask(force)
     },
-    [ask, candidates, nowMs, tier],
+    [ask, candidates, local, nowMs, tier],
   )
 
   useEffect(() => {
@@ -181,8 +208,14 @@ export const useUpNext = (request: UpNextRequest) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidates])
 
+  // Checked against the live task list on the way out — see `visibleEntries`.
+  const visible = useMemo(
+    () => visibleEntries(entries, candidates, local),
+    [entries, candidates, local],
+  )
+
   return {
-    ...split(entries.length > 0 ? entries : local),
+    ...split(visible),
     loading,
     refresh: () => void load(true),
   }

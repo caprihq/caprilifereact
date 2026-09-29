@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useNavigation } from '@react-navigation/native'
 
 import { useFeedback } from '@/hooks/useFeedback'
+import { track } from '@/services'
 import { recordIgnored, recordInteraction } from '../logic/signalsStore'
 import type { AppNavigation } from '@/navigation/types'
 import {
@@ -55,9 +56,18 @@ export const useHomeActions = (feed: TaskFeed, displayedHeroId?: string | null) 
   const [pending, setPending] = useState<Task | null>(null)
 
   const confirmCompletion = useCallback(() => {
-    if (pending) completeTask(pending)
+    if (pending) {
+      completeTask(pending)
+      // Whether the hero specifically gets done is the product's central question:
+      // CAPRI's whole claim is that it picks the right next thing.
+      track(
+        heroId === pending.id
+          ? { name: 'start_here_completed', params: { source: 'home' } }
+          : { name: 'task_completed', params: { source: 'home' } },
+      )
+    }
     setPending(null)
-  }, [completeTask, pending])
+  }, [completeTask, heroId, pending])
 
   const openTask = useCallback(
     (task: Task) => {
@@ -75,7 +85,11 @@ export const useHomeActions = (feed: TaskFeed, displayedHeroId?: string | null) 
    */
   const noteSkipped = useCallback(
     (task: Task) => {
-      if (heroId === task.id) recordIgnored(task.id)
+      if (heroId !== task.id) return
+      recordIgnored(task.id)
+      // The other half of the same question. Completed-versus-skipped on the hero is
+      // the one ratio that says whether the recommendation is any good.
+      track({ name: 'start_here_skipped', params: { source: 'home' } })
     },
     [heroId],
   )
@@ -93,6 +107,7 @@ export const useHomeActions = (feed: TaskFeed, displayedHeroId?: string | null) 
         cancelTask(task)
       },
       onViewPlan: () => navigation.navigate('Planner'),
+      onAddTask: () => navigation.navigate('AddTask'),
     }),
     [openTask, deferTask, cancelTask, noteSkipped, navigation],
   )

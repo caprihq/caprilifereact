@@ -6,6 +6,7 @@ import { reportError } from '@/services'
 import { friendlyMessage } from '@/utils'
 import type { Task } from '@/types/entities'
 import { emptyPlanNotice } from '../logic/autoScheduleNotice'
+import type { Unplaced } from '../logic/unplacedReason'
 
 /**
  * Smart auto-scheduling.
@@ -31,6 +32,13 @@ export type Suggestion = {
 type AutoScheduleResponse = {
   readonly data?: {
     readonly suggestions?: readonly Suggestion[]
+    /**
+     * Tasks that could not be placed, each with a code saying why.
+     *
+     * Read rather than discarded: showing four suggestions and saying nothing about
+     * the other eight reads as a broken feature, not as a full week.
+     */
+    readonly unplaced?: readonly Unplaced[]
     /** Why the plan is empty, as a code the app turns into copy. */
     readonly reason?: string
     readonly work_hours?: { readonly start?: number; readonly end?: number }
@@ -43,6 +51,7 @@ export const useAutoSchedule = () => {
   const { show } = useFeedback()
   const [running, setRunning] = useState(false)
   const [suggestions, setSuggestions] = useState<readonly Suggestion[]>([])
+  const [unplaced, setUnplaced] = useState<readonly Unplaced[]>([])
 
   /** Ask for a plan. Returns what came back so the caller can present it. */
   const run = useCallback(async (): Promise<readonly Suggestion[]> => {
@@ -55,6 +64,7 @@ export const useAutoSchedule = () => {
 
       const next = response.data?.suggestions ?? []
       setSuggestions(next)
+      setUnplaced(response.data?.unplaced ?? [])
 
       if (next.length === 0) {
         show(
@@ -71,6 +81,7 @@ export const useAutoSchedule = () => {
         message: friendlyMessage(error, "CAPRI couldn't build a plan right now. Please try again."),
         tone: 'error',
       })
+      setUnplaced([])
       return []
     } finally {
       setRunning(false)
@@ -81,5 +92,5 @@ export const useAutoSchedule = () => {
     setSuggestions((current) => current.filter((entry) => entry.task_id !== taskId))
   }, [])
 
-  return { run, running, suggestions, dismiss }
+  return { run, running, suggestions, unplaced, dismiss }
 }

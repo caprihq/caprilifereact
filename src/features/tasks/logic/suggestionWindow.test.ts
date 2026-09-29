@@ -33,3 +33,39 @@ describe('windowForSuggestion', () => {
     expect(windowForSuggestion('', undefined)).toBeNull()
   })
 })
+
+describe('windowForSuggestion — the deadline survives', () => {
+  const task = (over: Partial<Task> = {}): Task => ({
+    id: 't',
+    title: 'T',
+    status: 'pending',
+    ...over,
+  })
+
+  it('leaves an existing due date alone', () => {
+    // Scheduling Tuesday for a task due Friday used to make it due Tuesday, and the
+    // real deadline was gone for good.
+    const window = windowForSuggestion('2026-09-22T09:00:00.000Z', task({
+      due_date: '2026-09-25T00:00:00.000Z',
+    }))
+
+    expect(window).not.toHaveProperty('due_date')
+  })
+
+  it('sets one when the task had none', () => {
+    // Otherwise "scheduled for Tuesday" reads as open-ended everywhere else.
+    const window = windowForSuggestion('2026-09-22T09:00:00.000Z', task())
+
+    expect(window?.due_date).toBe('2026-09-22T09:00:00.000Z')
+  })
+
+  it('still writes the start and end either way', () => {
+    const window = windowForSuggestion('2026-09-22T09:00:00.000Z', task({
+      due_date: '2026-09-25T00:00:00.000Z',
+      estimated_minutes: 45,
+    }))
+
+    expect(window?.scheduled_start_time).toBe('2026-09-22T09:00:00.000Z')
+    expect(window?.scheduled_end_time).toBe('2026-09-22T09:45:00.000Z')
+  })
+})

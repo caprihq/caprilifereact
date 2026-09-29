@@ -7,6 +7,7 @@ import { AppLogo } from '@/components/AppLogo'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import { useCurrentUser } from '@/services/api'
+import { firstNameOf } from '@/features/profile/logic/displayName'
 import type { AppNavigation } from '@/navigation/types'
 
 /**
@@ -29,7 +30,8 @@ export const HomeHeader = () => {
   const navigation = useNavigation<AppNavigation>()
   const { data: user } = useCurrentUser()
 
-  const firstName = (user?.display_name ?? user?.full_name ?? '').split(' ')[0] ?? ''
+  // Null rather than a username: see `realName`.
+  const firstName = firstNameOf(user)
 
   return (
     <View
@@ -46,11 +48,24 @@ export const HomeHeader = () => {
         </Text>
       </View>
 
-      <HeaderAction
-        label="All tasks"
-        icon="list-outline"
-        onPress={() => navigation.navigate('AllTasks')}
-      />
+      {/*
+        Two ways out of Home, because there were two screens with one door between
+        them. The planner was reachable only through "View Full Plan" inside Today's
+        Plan — one link, on one card, that renders only when there is a plan to
+        show — so a whole screen could be invisible on the day you most wanted it.
+      */}
+      <View style={[styles.actions, { gap: theme.spacing.xs }]}>
+        <HeaderAction
+          label="Daily planner"
+          icon="calendar-outline"
+          onPress={() => navigation.navigate('Planner')}
+        />
+        <HeaderAction
+          label="All tasks"
+          icon="list-outline"
+          onPress={() => navigation.navigate('AllTasks')}
+        />
+      </View>
     </View>
   )
 }
@@ -95,6 +110,7 @@ export const greetingFor = (hour: number): string => {
 }
 
 const styles = StyleSheet.create({
+  actions: { flexDirection: 'row', alignItems: 'center' },
   row: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   action: {
     height: size.tapTarget,

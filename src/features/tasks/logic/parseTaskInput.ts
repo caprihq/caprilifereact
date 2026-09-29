@@ -28,6 +28,19 @@ export type ParsedTask = {
    * side of the same idea.
    */
   readonly is_scheduled_event?: boolean | undefined
+  /**
+   * When a scheduled event starts, as an ISO string.
+   *
+   * Only meaningful alongside `is_scheduled_event`. It is what places the item on
+   * Today's Commitments; without it an event has no anchor and appears nowhere —
+   * see `eventStart`.
+   */
+  readonly scheduled_start_time?: string | undefined
+  /**
+   * When a scheduled event ends. Derived from the start and the duration rather than
+   * asked for — see `toTaskPatch`, which is the one place it is written.
+   */
+  readonly scheduled_end_time?: string | undefined
   /** Recurrence lives on the draft so Add Task can set it, not only the detail screen. */
   readonly recurrence?: Recurrence | undefined
   readonly recurrence_end_date?: string | undefined

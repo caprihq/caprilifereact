@@ -5,8 +5,9 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
+import { CategoryIcon } from './CategoryIcon'
 import type { ParsedTask } from '../logic/parseTaskInput'
-import { durationLabel, emojiFor } from '../logic/taskPresentation'
+import { durationLabel } from '../logic/taskPresentation'
 
 /**
  * Step two: what CAPRI understood, before anything is saved.
@@ -52,7 +53,7 @@ export const TaskConfirmStep = ({
       <Card>
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="bodyStrong">
-            {emojiFor(draft)} {draft.title}
+            <CategoryIcon task={draft} /> {draft.title}
           </Text>
 
           {draft.description ? (

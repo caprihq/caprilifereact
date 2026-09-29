@@ -3,9 +3,10 @@ import Ionicons from 'react-native-vector-icons/Ionicons'
 
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
+import { CategoryIcon } from './CategoryIcon'
 import type { AppTheme } from '@/theme'
 import type { Task } from '@/types/entities'
-import { bandFor, durationLabel, emojiFor } from '../logic/taskPresentation'
+import { bandFor, durationLabel } from '../logic/taskPresentation'
 import { anchorOf } from '../logic/timeSlots'
 
 /**
@@ -76,7 +77,7 @@ export const PlannerTaskRow = ({
 
       <View style={styles.body}>
         <Text variant="body" numberOfLines={1} style={done ? styles.struck : null}>
-          {emojiFor(task)} {task.title}
+          <CategoryIcon task={task} /> {task.title}
         </Text>
         {time || length ? (
           <Text variant="caption" tone="muted">

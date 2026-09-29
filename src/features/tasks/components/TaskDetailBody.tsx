@@ -8,7 +8,7 @@ import { usePlan } from '@/hooks/usePlan'
 import type { ParsedTask } from '@/features/tasks/logic/parseTaskInput'
 import { toTaskPatch } from '@/features/tasks/logic/toTaskPatch'
 import type { AppNavigation } from '@/navigation/types'
-import type { Recurrence, Task } from '@/types/entities'
+import type { Task } from '@/types/entities'
 import { useTaskMutations } from '../services/useTaskMutations'
 import { useReprioritise } from '../hooks/useReprioritise'
 import { useSubtaskEditor } from '../hooks/useSubtaskEditor'
@@ -21,7 +21,6 @@ import {
   COMPLETION_MESSAGE,
   completionTitle,
 } from '../logic/completionPrompt'
-import { RecurrenceRow } from './RecurrenceRow'
 import { SubtasksSection } from './SubtasksSection'
 import { TaskDetailActions } from './TaskDetailActions'
 import { TaskFieldsForm } from './TaskFieldsForm'
@@ -32,9 +31,9 @@ import { TaskFieldsForm } from './TaskFieldsForm'
  * Split from TaskDetailScreen because the subtask editor is a hook, and hooks
  * cannot sit behind the screen's "task not found" early return.
  *
- * Recurrence and subtasks save immediately rather than joining the draft: both
- * are structural rather than text edits, and `ParsedTask` — which the form and
- * the capture flow share — has no room for them.
+ * Subtasks save immediately rather than joining the draft: ticking a step is a
+ * structural edit, not a text one, and `ParsedTask` — which this form and the
+ * capture flow share — has no room for them.
  */
 
 type TaskDetailBodyProps = {
@@ -57,13 +56,33 @@ export const TaskDetailBody = ({ task, userEmail }: TaskDetailBodyProps) => {
   const reprioritise = useReprioritise(task, userEmail)
   const [draft, setDraft] = useState<ParsedTask | null>(null)
 
+  /**
+   * The task as the form's draft.
+   *
+   * Every editable field belongs here, and four were missing. The form shows what
+   * the draft says, so an absent field did not read as "unset" to the user — it read
+   * as a fact about their task. "Scheduled event" was drawn Off for a task that *was*
+   * a scheduled event, notes written on the web appeared blank, and a repeating task
+   * said it did not repeat.
+   *
+   * `is_scheduled_event` is defaulted rather than left undefined so that switching it
+   * off sends `false`: `toTaskPatch` omits an undefined field, and Base44 leaves an
+   * omitted field alone, so the setting could be turned on and never off again.
+   */
   const initial: ParsedTask = useMemo(
     () => ({
       title: task.title,
+      // Coalesced: the API sends null for an empty description, and the form's
+      // fields are typed as optional strings rather than nullable ones.
+      description: task.description ?? undefined,
       due_date: task.due_date,
       estimated_minutes: task.estimated_minutes,
       category: task.category,
       priority: task.priority,
+      is_scheduled_event: task.is_scheduled_event ?? false,
+      scheduled_start_time: task.scheduled_start_time ?? undefined,
+      recurrence: task.recurrence,
+      recurrence_end_date: task.recurrence_end_date,
     }),
     [task],
   )
@@ -72,15 +91,9 @@ export const TaskDetailBody = ({ task, userEmail }: TaskDetailBodyProps) => {
   /** Each gate names itself, so the prompt can say what was reached for. */
   const openPlan = upgrade.prompt
 
-  const setRecurrence = (recurrence: Recurrence) => {
-    updateTask.mutate({ id: task.id, data: { recurrence } })
-  }
 
   // Null, not undefined: Base44 leaves an omitted field alone, so clearing the end
   // date has to be sent explicitly or the series keeps its old stop point.
-  const setRecurrenceEnd = (iso: string | undefined) => {
-    updateTask.mutate({ id: task.id, data: { recurrence_end_date: iso ?? null } })
-  }
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
@@ -92,16 +105,15 @@ export const TaskDetailBody = ({ task, userEmail }: TaskDetailBodyProps) => {
           navigation.goBack()
         }}
         saving={updateTask.isPending}
+        recurrenceLocked={!hasAccess('recurring_tasks')}
+        onUpgrade={() => openPlan('recurring_tasks')}
+        footer={<Subtasks editor={subtasks} onUpgrade={() => openPlan('subtasks')} />}
       />
 
       <TaskDetailExtras
         task={task}
-        subtasks={subtasks}
         reprioritise={reprioritise}
         canReprioritise={hasAccess('analytics')}
-        recurrenceLocked={!hasAccess('recurring_tasks')}
-        onSetRecurrence={setRecurrence}
-        onSetRecurrenceEnd={setRecurrenceEnd}
         onUpgrade={openPlan}
         onComplete={() => {
           setConfirmingComplete(true)
@@ -133,29 +145,48 @@ export const TaskDetailBody = ({ task, userEmail }: TaskDetailBodyProps) => {
   )
 }
 
+/** The steps a task breaks into, rendered above the save button. */
+const Subtasks = ({
+  editor,
+  onUpgrade,
+}: {
+  readonly editor: ReturnType<typeof useSubtaskEditor>
+  readonly onUpgrade: () => void
+}) => (
+  <SubtasksSection
+    subtasks={editor.subtasks}
+    progress={editor.progress}
+    locked={editor.locked}
+    generating={editor.generating}
+    editingId={editor.editingId}
+    onToggle={editor.toggle}
+    onRemove={editor.remove}
+    onRename={editor.rename}
+    onStartEditing={editor.startEditing}
+    onAdd={editor.add}
+    onGenerate={() => void editor.generate()}
+    onUpgrade={onUpgrade}
+  />
+)
+
 /**
- * Everything below the edit form: how the task repeats, its subtasks, and the
- * terminal actions. Split out so each body stays inside the 80-line limit (§3.2).
+ * What belongs *after* saving: re-prioritise, complete, delete.
+ *
+ * Repeats and subtasks used to live here too, which put them below the save button
+ * — read as "after you save" and scrolled past. They are fields, so they now sit
+ * with the fields; only the terminal actions remain.
  */
 const TaskDetailExtras = ({
   task,
-  subtasks,
   reprioritise,
   canReprioritise,
-  recurrenceLocked,
-  onSetRecurrence,
-  onSetRecurrenceEnd,
   onUpgrade,
   onComplete,
   onDelete,
 }: {
   readonly task: Task
-  readonly subtasks: ReturnType<typeof useSubtaskEditor>
   readonly reprioritise: ReturnType<typeof useReprioritise>
   readonly canReprioritise: boolean
-  readonly recurrenceLocked: boolean
-  readonly onSetRecurrence: (value: Recurrence) => void
-  readonly onSetRecurrenceEnd: (iso: string | undefined) => void
   readonly onUpgrade: (feature: GatedFeature) => void
   readonly onComplete: () => void
   readonly onDelete: () => void
@@ -164,30 +195,6 @@ const TaskDetailExtras = ({
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
-      <RecurrenceRow
-        value={task.recurrence}
-        endDate={task.recurrence_end_date}
-        locked={recurrenceLocked}
-        onChange={onSetRecurrence}
-        onChangeEndDate={onSetRecurrenceEnd}
-        onUpgrade={() => onUpgrade('recurring_tasks')}
-      />
-
-      <SubtasksSection
-        subtasks={subtasks.subtasks}
-        progress={subtasks.progress}
-        locked={subtasks.locked}
-        generating={subtasks.generating}
-        editingId={subtasks.editingId}
-        onToggle={subtasks.toggle}
-        onRemove={subtasks.remove}
-        onRename={subtasks.rename}
-        onStartEditing={subtasks.startEditing}
-        onAdd={subtasks.add}
-        onGenerate={() => void subtasks.generate()}
-        onUpgrade={() => onUpgrade('subtasks')}
-      />
-
       <TaskDetailActions
         task={task}
         reprioritising={reprioritise.running}

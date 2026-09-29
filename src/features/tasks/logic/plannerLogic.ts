@@ -104,3 +104,24 @@ export const filterDailyPlannerTasks = (
 
   return { todayScheduled, needsAttention, overdue }
 }
+
+
+/**
+ * How much of a planner aside to draw.
+ *
+ * "Carried over" is every overdue task, and "Needs attention" every task due today
+ * without a time — both unbounded. Drawn in full they turn a day plan into a
+ * hundred-row scroll, and because the planner is one `ScrollView` every one of those
+ * rows is built before the screen appears. Nesting a virtualized list inside a
+ * scroll view is not the answer either: React Native disables windowing when you do
+ * that, so it costs the same and warns about it.
+ *
+ * A planner is a summary. It shows the first few and says how many more there are;
+ * the full list already exists, one tap away, and it *is* virtualized.
+ */
+export const ASIDE_LIMIT = 5
+
+export const asideView = <T,>(tasks: readonly T[]): { shown: readonly T[]; hidden: number } => ({
+  shown: tasks.slice(0, ASIDE_LIMIT),
+  hidden: Math.max(0, tasks.length - ASIDE_LIMIT),
+})

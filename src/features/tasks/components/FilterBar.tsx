@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { size } from '@/theme'
 
 import { Text } from '@/components/Text'
@@ -44,11 +44,16 @@ export const FilterBar = ({ active, onChange }: FilterBarProps) => {
   }
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ gap: theme.spacing.sm, paddingVertical: theme.spacing.xs }}
-    >
+    /**
+     * Wrapped, not scrolled.
+     *
+     * These used to sit in a horizontal scroller, where the eighth filter was sliced
+     * flat by the screen edge with no fade and no indicator — so half the filters
+     * existed only for people who guessed they could swipe a row that did not look
+     * swipeable. Eight short chips fit in two lines; showing all of them is simpler
+     * than decorating a scroll hint onto a row that never needed to scroll.
+     */
+    <View style={[styles.wrap, { gap: theme.spacing.sm, paddingVertical: theme.spacing.xs }]}>
       {TASK_FILTERS.map((filter) => {
         const selected = filter === active
         const dot = dotFor(filter)
@@ -88,11 +93,12 @@ export const FilterBar = ({ active, onChange }: FilterBarProps) => {
           </Pressable>
         )
       })}
-    </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

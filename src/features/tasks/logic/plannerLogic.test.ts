@@ -1,4 +1,4 @@
-import { filterDailyPlannerTasks, filterTodayPlanTasks } from './plannerLogic'
+import { filterDailyPlannerTasks, filterTodayPlanTasks, ASIDE_LIMIT, asideView } from './plannerLogic'
 // The date primitives moved to utils so commitments could use them without
 // depending on the tasks feature. Still tested here, since the planner rules are
 // what make the timezone cases matter.
@@ -136,5 +136,33 @@ describe('filterDailyPlannerTasks', () => {
   it('drops tasks with no anchor at all', () => {
     const plan = filterDailyPlannerTasks([task({ id: 'floating' })], opts)
     expect([...plan.todayScheduled, ...plan.needsAttention, ...plan.overdue]).toEqual([])
+  })
+})
+
+describe('asideView', () => {
+  const tasks = (count: number) => Array.from({ length: count }, (_, i) => ({ id: String(i) }))
+
+  it('shows everything when the list is short', () => {
+    const { shown, hidden } = asideView(tasks(3))
+
+    expect(shown).toHaveLength(3)
+    expect(hidden).toBe(0)
+  })
+
+  it('caps a long list and counts the remainder', () => {
+    // "Carried over" is every overdue task. Drawn in full it turns a day plan into
+    // a hundred-row scroll, all of it built before the screen appears.
+    const { shown, hidden } = asideView(tasks(40))
+
+    expect(shown).toHaveLength(ASIDE_LIMIT)
+    expect(hidden).toBe(40 - ASIDE_LIMIT)
+  })
+
+  it('keeps the first few, which are the ones ranked highest', () => {
+    expect(asideView(tasks(10)).shown.map((t) => t.id)).toEqual(['0', '1', '2', '3', '4'])
+  })
+
+  it('never reports a negative remainder', () => {
+    expect(asideView([]).hidden).toBe(0)
   })
 })

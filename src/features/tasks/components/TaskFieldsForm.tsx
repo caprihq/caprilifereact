@@ -1,8 +1,13 @@
 import { useState } from 'react'
-import { StyleSheet, Switch, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
+
+import type { ReactNode } from 'react'
 
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
+import { ScheduledEventSection } from './ScheduledEventSection'
+import { taskProblems } from '../logic/taskValidation'
+import type { TaskProblem } from '../logic/taskValidation'
 import { Picker } from '@/components/Picker'
 import { Row } from '@/components/Row'
 import { Text } from '@/components/Text'
@@ -29,6 +34,14 @@ type TaskFieldsFormProps = {
   readonly onChange: (next: ParsedTask) => void
   readonly onSave: () => void
   readonly saving: boolean
+  /**
+   * Rendered between the fields and the save button.
+   *
+   * Task Detail puts its subtasks here. They used to sit *after* Save, and anything
+   * below a save button reads as happening after you save — so the one section that
+   * asks you to think was the one section people scrolled past.
+   */
+  readonly footer?: ReactNode
   /** Repeats is an Executive feature; the row still shows, locked. */
   readonly recurrenceLocked?: boolean
   readonly onUpgrade?: (() => void) | undefined
@@ -44,12 +57,14 @@ export const TaskFieldsForm = ({
   onChange,
   onSave,
   saving,
+  footer,
   recurrenceLocked = false,
   onUpgrade,
   showHeading = true,
 }: TaskFieldsFormProps) => {
   const theme = useTheme()
   const [picker, setPicker] = useState<'category' | 'priority' | 'duration' | null>(null)
+  const problems = taskProblems(draft)
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
@@ -108,15 +123,16 @@ export const TaskFieldsForm = ({
         onUpgrade={onUpgrade ?? (() => undefined)}
       />
 
-      <ScheduledEventToggle
-        value={draft.is_scheduled_event ?? false}
-        onChange={(is_scheduled_event) => onChange({ ...draft, is_scheduled_event })}
-      />
+      <ScheduledEventSection draft={draft} onChange={onChange} />
 
-      <Button
-        label={draft.is_scheduled_event ? 'Save event' : 'Save & prioritise'}
-        icon="sparkles"
-        onPress={onSave} loading={saving} disabled={!draft.title.trim()} />
+      {footer}
+
+      <SaveRow
+        draft={draft}
+        problems={problems}
+        saving={saving}
+        onSave={onSave}
+      />
 
       <FieldPickers draft={draft} onChange={onChange} picker={picker} onClose={() => setPicker(null)} />
     </View>
@@ -124,36 +140,39 @@ export const TaskFieldsForm = ({
 }
 
 /**
- * A commitment is something that happens at a time, not work to rank.
+ * The save button, and why it cannot be pressed.
  *
- * The web sheet calls this "Scheduled Event". Setting it keeps the item out of Start
- * Here and Up Next — `useTaskFeed` filters `is_scheduled_event` out of the ranking —
- * and puts it under Today's Commitments instead.
+ * A greyed out control with no explanation reads as a broken app, and the reason here
+ * is not guessable: a scheduled event needs a start time, and an event saved without
+ * one appears nowhere at all.
  */
-const ScheduledEventToggle = ({
-  value,
-  onChange,
+const SaveRow = ({
+  draft,
+  problems,
+  saving,
+  onSave,
 }: {
-  readonly value: boolean
-  readonly onChange: (next: boolean) => void
-}) => {
-  const theme = useTheme()
+  readonly draft: ParsedTask
+  readonly problems: readonly TaskProblem[]
+  readonly saving: boolean
+  readonly onSave: () => void
+}) => (
+  <>
+    {problems.length > 0 ? (
+      <Text variant="caption" tone="danger" align="center">
+        {problems.map((problem) => problem.message).join(' ')}
+      </Text>
+    ) : null}
 
-  return (
-    <Card>
-      <View style={[styles.toggle, { gap: theme.spacing.md }]}>
-        <View style={styles.toggleText}>
-          <Text variant="body">Scheduled event</Text>
-          <Text variant="caption" tone="muted">
-            Shows under Today&apos;s Commitments instead of being ranked as work
-          </Text>
-        </View>
-        <Switch accessibilityLabel="Scheduled event" value={value} onValueChange={onChange} />
-      </View>
-    </Card>
-  )
-}
-
+    <Button
+      label={draft.is_scheduled_event ? 'Save event' : 'Save & prioritise'}
+      icon="sparkles"
+      onPress={onSave}
+      loading={saving}
+      disabled={problems.length > 0}
+    />
+  </>
+)
 
 /** Category, priority and duration, which are choices rather than typing. */
 const FieldPickers = ({
