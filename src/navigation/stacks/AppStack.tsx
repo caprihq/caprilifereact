@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 
-import { AdminScreen } from '@/features/admin'
+import { AdminScreen, SelectRecipientsScreen } from '@/features/admin'
 import { ChangePasswordScreen } from '@/features/auth'
 import { PlanScreen, PrivacyScreen, SupportScreen } from '@/features/profile'
 import {
@@ -66,6 +66,11 @@ export const AppStack = () => {
       <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Contact support' }} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy' }} />
       <Stack.Screen name="Admin" component={AdminScreen} options={{ title: 'Push notifications' }} />
+      <Stack.Screen
+        name="SelectRecipients"
+        component={SelectRecipientsScreen}
+        options={{ title: 'Choose people' }}
+      />
       <Stack.Screen
         name="ChangePassword"
         component={ChangePasswordScreen}

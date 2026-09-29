@@ -2,31 +2,38 @@ import { size } from '@/theme'
 import { View } from 'react-native'
 
 import { Button } from '@/components/Button'
+import { Divider } from '@/components/Divider'
 import { KeyboardAwareScroll } from '@/components/KeyboardAwareScroll'
-import { Picker } from '@/components/Picker'
+import { SectionLabel } from '@/components/SectionLabel/SectionLabel'
 import { Text } from '@/components/Text'
 import { TextField } from '@/components/TextField'
-import { RecipientPanel } from '../components/RecipientPicker'
+import { useNavigation } from '@react-navigation/native'
+import { SelectedRecipients } from '../components/SelectedRecipients'
 import { recipientSummary, recipientsFor } from '../logic/recipients'
 import { useAdminUsers } from '../services/useAdminUsers'
-import { useBroadcast, useCompose, useReminderSweep } from '../services/useBroadcast'
+import { useBroadcast, useReminderSweep } from '../services/useBroadcast'
 import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
+import { useBroadcastStore } from '@/store'
+import type { AppNavigation } from '@/navigation'
 import { useCurrentUser } from '@/services/api'
 
 /**
  * Push notification console.
  *
+ * Two jobs, one screen, kept apart by a rule: writing a message and sending it, and
+ * running the reminder job that otherwise runs itself. They share a backend function
+ * but nothing else, and reading them as one form is how an admin ends up expecting
+ * the sweep to honour the people they just ticked.
+ *
+ * Deliberately short. Everything needed to send — what it says, who gets it, and the
+ * button — fits without scrolling; the list of people that used to sit in the middle
+ * now has its own screen. The old plan-shaped audience picker is gone with it: see
+ * `recipients.ts` for why it was removed rather than fixed.
+ *
  * The role check here is UX only — sendPushNotification re-checks
  * `role === "admin"` server-side, which is the actual security boundary.
  */
-
-const AUDIENCES = [
-  { value: 'all', label: 'Everyone' },
-  { value: 'free', label: 'Free plan' },
-  { value: 'executive', label: 'Executive plan' },
-  { value: 'chief_of_staff', label: 'Chief of Staff plan' },
-] as const
 
 /** Shown to anyone who is not an admin. The real gate is server-side. */
 const NotAuthorised = () => (
@@ -40,21 +47,19 @@ const NotAuthorised = () => (
 export const AdminScreen = () => {
   const theme = useTheme()
   const wash = useWash()
+  const navigation = useNavigation<AppNavigation>()
   const { data: user } = useCurrentUser()
 
-  const compose = useCompose()
-  const people = useAdminUsers(compose.picking)
+  const draft = useBroadcastStore()
+  const people = useAdminUsers()
 
   const { send, sending } = useBroadcast({
-    title: compose.title,
-    body: compose.body,
-    recipients: recipientsFor(compose.audience, compose.selected),
-    onSent: compose.reset,
+    title: draft.title,
+    body: draft.body,
+    recipients: recipientsFor(draft.selected),
+    onSent: draft.reset,
   })
   const { runSweep, sweeping } = useReminderSweep()
-  /** The plan or "Everyone" behind the audience button, named once and reused. */
-  const audienceLabel =
-    AUDIENCES.find((a) => a.value === compose.audience)?.label ?? 'Everyone'
 
   if (user?.role !== 'admin') return <NotAuthorised />
 
@@ -66,69 +71,81 @@ export const AdminScreen = () => {
       <TextField
         label="Title"
         placeholder="Title"
-        value={compose.title}
-        onChangeText={compose.setTitle}
+        value={draft.title}
+        onChangeText={draft.setTitle}
       />
       <TextField
         label="Body"
         placeholder="Message"
-        value={compose.body}
-        onChangeText={compose.setBody}
+        value={draft.body}
+        onChangeText={draft.setBody}
       />
 
-      <Button
-        label={`Audience: ${audienceLabel}`}
-        variant="secondary"
-        onPress={() => compose.setPickerOpen(true)}
-      />
+      <SectionLabel>{`Who gets it — ${recipientSummary(draft.selected)}`}</SectionLabel>
 
-      <Button
-        label={
-          compose.picking
-            ? 'Hide people'
-            : `Send to: ${recipientSummary(audienceLabel, compose.selected)}`
-        }
-        variant="secondary"
-        onPress={() => compose.setPicking((open) => !open)}
-      />
-
-      {/*
-        Opened on demand rather than always shown: most sends go to an audience, and
-        a list of every customer above the message box buries what the admin came to
-        write. Fetching is tied to the same flag, so the list is not loaded at all
-        unless someone asks for it.
-      */}
-      <RecipientPanel
-        open={compose.picking}
+      <SelectedRecipients
         users={people.data ?? []}
-        query={compose.query}
-        onQuery={compose.setQuery}
-        selected={compose.selected}
-        onSelected={compose.setSelected}
+        selected={draft.selected}
+        loading={people.isLoading}
+      />
+
+      <Button
+        label={draft.selected.length > 0 ? 'Change people' : 'Choose people'}
+        variant="secondary"
+        onPress={() => { navigation.navigate('SelectRecipients') }}
       />
 
       <Button
         label="Send push"
         onPress={() => void send()}
         loading={sending}
-        disabled={!compose.title.trim() || !compose.body.trim()}
+        disabled={!draft.title.trim() || !draft.body.trim()}
       />
+
+      <Divider />
+
+      <SweepSection onRun={() => void runSweep()} running={sweeping} />
+    </KeyboardAwareScroll>
+  )
+}
+
+/**
+ * The reminder job, and what pressing it actually does.
+ *
+ * Unlabelled, "Run reminder sweep" reads as a second way to send something, sitting
+ * as it did right under a send button. It is neither: it sends nobody anything new,
+ * and the recipients above have no bearing on it. That is worth three lines of prose
+ * next to the button rather than tribal knowledge.
+ */
+const SweepSection = ({
+  onRun,
+  running,
+}: {
+  readonly onRun: () => void
+  readonly running: boolean
+}) => {
+  const theme = useTheme()
+
+  return (
+    <View style={{ gap: theme.spacing.sm }}>
+      <SectionLabel>Scheduled reminders</SectionLabel>
+
+      <Text variant="caption" tone="muted">
+        Reminders go out on their own every 5 minutes. This runs that same check right
+        now, so you can test it without waiting for the next one.
+      </Text>
+      <Text variant="caption" tone="muted">
+        It only delivers reminders that are already due, and never sends one twice — so
+        pressing it cannot produce a notification that was not going to happen anyway.
+        The message and the people above are not used.
+      </Text>
 
       <Button
         label="Run reminder sweep"
         variant="secondary"
-        onPress={() => void runSweep()}
-        loading={sweeping}
+        onPress={onRun}
+        loading={running}
       />
-
-      <Picker
-        open={compose.pickerOpen}
-        title="Audience"
-        value={compose.audience}
-        options={AUDIENCES.map((a) => ({ value: a.value, label: a.label }))}
-        onSelect={compose.setAudience}
-        onClose={() => compose.setPickerOpen(false)}
-      />
-    </KeyboardAwareScroll>
+    </View>
   )
 }

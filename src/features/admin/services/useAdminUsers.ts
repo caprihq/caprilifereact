@@ -10,13 +10,12 @@ import type { AdminUser } from '../logic/recipients'
  * to the person asking — correctly, since nobody should be able to enumerate the
  * customer list from the app. `listUsers` does the role check server-side.
  *
- * Cached for a few minutes: the list changes rarely, and an admin opening the picker
- * three times while composing one message should not fetch it three times.
+ * Cached for a few minutes: the list changes rarely, and it is now fetched as soon as
+ * the screen opens, so the cache is what keeps revisits from refetching it.
  */
-export const useAdminUsers = (enabled: boolean) =>
+export const useAdminUsers = () =>
   useQuery({
     queryKey: ['admin', 'users'],
-    enabled,
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<readonly AdminUser[]> => {
       const response = (await base44.functions.invoke('listUsers', {})) as {

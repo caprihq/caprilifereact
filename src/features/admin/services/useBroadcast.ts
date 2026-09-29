@@ -91,45 +91,4 @@ export const useReminderSweep = () => {
   return { runSweep, sweeping }
 }
 
-/**
- * Everything the compose form holds.
- *
- * Seven pieces of state in one component body is past the point where the screen is
- * about layout; gathered here so `AdminScreen` reads as a form rather than a pile of
- * setters (§3.2).
- */
-export const useCompose = () => {
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
-  const [audience, setAudience] = useState<string>('all')
-  const [selected, setSelected] = useState<readonly string[]>([])
-  const [query, setQuery] = useState('')
-  const [picking, setPicking] = useState(false)
-  const [pickerOpen, setPickerOpen] = useState(false)
-
-  /** Cleared after a send, so the next message starts from nothing. */
-  const reset = useCallback(() => {
-    setTitle('')
-    setBody('')
-    setSelected([])
-  }, [])
-
-  return {
-    title,
-    setTitle,
-    body,
-    setBody,
-    audience,
-    setAudience,
-    selected,
-    setSelected,
-    query,
-    setQuery,
-    picking,
-    setPicking,
-    pickerOpen,
-    setPickerOpen,
-    reset,
-  }
-}
 
