@@ -1,4 +1,3 @@
-import { useCallback, useState } from 'react'
 import { size } from '@/theme'
 import { View } from 'react-native'
 
@@ -7,11 +6,12 @@ import { KeyboardAwareScroll } from '@/components/KeyboardAwareScroll'
 import { Picker } from '@/components/Picker'
 import { Text } from '@/components/Text'
 import { TextField } from '@/components/TextField'
-import { useFeedback } from '@/hooks/useFeedback'
+import { RecipientPanel } from '../components/RecipientPicker'
+import { recipientSummary, recipientsFor } from '../logic/recipients'
+import { useAdminUsers } from '../services/useAdminUsers'
+import { useBroadcast, useCompose, useReminderSweep } from '../services/useBroadcast'
 import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
-import { base44 } from '@/services/api'
-import { reportError } from '@/services'
 import { useCurrentUser } from '@/services/api'
 
 /**
@@ -28,133 +28,90 @@ const AUDIENCES = [
   { value: 'chief_of_staff', label: 'Chief of Staff plan' },
 ] as const
 
-
-/**
- * The admin broadcast. Its own hook so the screen reads as a form plus two
- * actions rather than a wall of async plumbing (§3.2).
- */
-const useBroadcast = ({
-  title,
-  body,
-  audience,
-  onSent,
-}: {
-  readonly title: string
-  readonly body: string
-  readonly audience: string
-  readonly onSent: () => void
-}) => {
-  const { show } = useFeedback()
-  const [sending, setSending] = useState(false)
-
-  const send = useCallback(async () => {
-    setSending(true)
-    try {
-      const result = (await base44.functions.invoke('sendPushNotification', {
-        title,
-        body,
-        audience,
-      })) as { data?: { sent?: number; failed?: number } }
-
-      const sent = result.data?.sent ?? 0
-      const failed = result.data?.failed ?? 0
-      show({
-        message: `Sent ${String(sent)}, failed ${String(failed)}.`,
-        tone: failed > 0 ? 'warning' : 'success',
-      })
-      onSent()
-    } catch (error) {
-      reportError(error, 'sendPushNotification')
-      show({ message: 'Send failed.', tone: 'error' })
-    } finally {
-      setSending(false)
-    }
-  }, [title, body, audience, show, onSent])
-
-  return { send, sending }
-}
-
-/**
- * Run the reminder sweep now, exactly as the schedule does.
- *
- * The sweep is idempotent and only ever sends what the clock already says is due,
- * so triggering it by hand cannot produce a notification that was not going to
- * happen anyway — it just happens sooner than the next cron tick. It is how
- * reminders get verified without waiting for the schedule, and how you check the
- * schedule is wired at all after a deploy.
- */
-const useReminderSweep = () => {
-  const { show } = useFeedback()
-  const [sweeping, setSweeping] = useState(false)
-
-  const runSweep = useCallback(async () => {
-    setSweeping(true)
-    try {
-      const result = (await base44.functions.invoke('sendPushNotification', {
-        mode: 'reminders',
-      })) as { data?: { considered?: number; notified?: number; quiet_suppressed?: number } }
-
-      const considered = result.data?.considered ?? 0
-      const notified = result.data?.notified ?? 0
-      const quiet = result.data?.quiet_suppressed ?? 0
-      show({
-        message: `Checked ${String(considered)} upcoming, notified ${String(notified)}, quiet ${String(quiet)}.`,
-        tone: notified > 0 ? 'success' : 'info',
-      })
-    } catch (error) {
-      reportError(error, 'reminderSweep')
-      show({ message: "Couldn't run the reminder sweep.", tone: 'error' })
-    } finally {
-      setSweeping(false)
-    }
-  }, [show])
-
-  return { runSweep, sweeping }
-}
+/** Shown to anyone who is not an admin. The real gate is server-side. */
+const NotAuthorised = () => (
+  <View style={{ flex: 1, justifyContent: 'center', padding: size.screenPadding }}>
+    <Text variant="heading" align="center">
+      Admin access required
+    </Text>
+  </View>
+)
 
 export const AdminScreen = () => {
   const theme = useTheme()
   const wash = useWash()
   const { data: user } = useCurrentUser()
 
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
-  const [audience, setAudience] = useState<string>('all')
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const compose = useCompose()
+  const people = useAdminUsers(compose.picking)
 
-
-  const { send, sending } = useBroadcast({ title, body, audience, onSent: () => { setTitle(''); setBody('') } })
+  const { send, sending } = useBroadcast({
+    title: compose.title,
+    body: compose.body,
+    recipients: recipientsFor(compose.audience, compose.selected),
+    onSent: compose.reset,
+  })
   const { runSweep, sweeping } = useReminderSweep()
+  /** The plan or "Everyone" behind the audience button, named once and reused. */
+  const audienceLabel =
+    AUDIENCES.find((a) => a.value === compose.audience)?.label ?? 'Everyone'
 
-  if (user?.role !== 'admin') {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', padding: size.screenPadding }}>
-        <Text variant="heading" align="center">
-          Admin access required
-        </Text>
-      </View>
-    )
-  }
+  if (user?.role !== 'admin') return <NotAuthorised />
 
   return (
     <KeyboardAwareScroll
       align="top"
       contentStyle={[wash, { padding: size.screenPadding, gap: theme.spacing.lg }]}
     >
-      <TextField label="Title" placeholder="Title" value={title} onChangeText={setTitle} />
-      <TextField label="Body" placeholder="Message" value={body} onChangeText={setBody} />
+      <TextField
+        label="Title"
+        placeholder="Title"
+        value={compose.title}
+        onChangeText={compose.setTitle}
+      />
+      <TextField
+        label="Body"
+        placeholder="Message"
+        value={compose.body}
+        onChangeText={compose.setBody}
+      />
 
       <Button
-        label={`Audience: ${AUDIENCES.find((a) => a.value === audience)?.label ?? 'Everyone'}`}
+        label={`Audience: ${audienceLabel}`}
         variant="secondary"
-        onPress={() => setPickerOpen(true)}
+        onPress={() => compose.setPickerOpen(true)}
+      />
+
+      <Button
+        label={
+          compose.picking
+            ? 'Hide people'
+            : `Send to: ${recipientSummary(audienceLabel, compose.selected)}`
+        }
+        variant="secondary"
+        onPress={() => compose.setPicking((open) => !open)}
+      />
+
+      {/*
+        Opened on demand rather than always shown: most sends go to an audience, and
+        a list of every customer above the message box buries what the admin came to
+        write. Fetching is tied to the same flag, so the list is not loaded at all
+        unless someone asks for it.
+      */}
+      <RecipientPanel
+        open={compose.picking}
+        users={people.data ?? []}
+        query={compose.query}
+        onQuery={compose.setQuery}
+        selected={compose.selected}
+        onSelected={compose.setSelected}
       />
 
       <Button
         label="Send push"
         onPress={() => void send()}
         loading={sending}
-        disabled={!title.trim() || !body.trim()}
+        disabled={!compose.title.trim() || !compose.body.trim()}
       />
 
       <Button
@@ -165,12 +122,12 @@ export const AdminScreen = () => {
       />
 
       <Picker
-        open={pickerOpen}
+        open={compose.pickerOpen}
         title="Audience"
-        value={audience}
+        value={compose.audience}
         options={AUDIENCES.map((a) => ({ value: a.value, label: a.label }))}
-        onSelect={setAudience}
-        onClose={() => setPickerOpen(false)}
+        onSelect={compose.setAudience}
+        onClose={() => compose.setPickerOpen(false)}
       />
     </KeyboardAwareScroll>
   )
