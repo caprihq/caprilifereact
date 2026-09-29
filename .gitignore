@@ -70,3 +70,12 @@ yarn-error.log*
 # to work in this repo rather than what it does, and they change constantly.
 CLAUDE.md
 CODING_GUIDELINES.md
+
+# Working documents — not part of the app
+AI-Feature.md
+Backlog.md
+Client-Update.md
+Scheduling-Design.md
+incomplete.md
+Technical-Documentation.html
+CAPRI-Technical-Documentation.pdf
