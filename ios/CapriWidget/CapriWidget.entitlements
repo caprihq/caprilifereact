@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Shared, non-secret storage: the last feed the widget drew. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.base69aa4c4d4f33993320ae7f08.app</string>
+	</array>
+	<!--
+	  The session token lives in the app's Keychain, not here. This group is what
+	  lets the extension read that one item; it must be the same first entry as the
+	  app's entitlements, because neither side passes an access group at runtime and
+	  iOS files the item under the first group it finds.
+	-->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.base69aa4c4d4f33993320ae7f08.app.shared</string>
+	</array>
+</dict>
+</plist>
