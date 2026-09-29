@@ -4,6 +4,13 @@ import type { NavigatorScreenParams } from '@react-navigation/native'
 
 export type AuthStackParamList = {
   Login: undefined
+  /**
+   * The same screen the signed-in stack shows.
+   *
+   * Registered in both because a policy that can only be read once you have an
+   * account is not a policy you agreed to before creating one.
+   */
+  Privacy: undefined
   EmailSignIn: undefined
   EmailSignUp: undefined
   /**
@@ -70,6 +77,8 @@ export type AppStackParamList = {
   Support: undefined
   Privacy: undefined
   Admin: undefined
+  /** Tick who a broadcast goes to. Edits the shared draft in place. */
+  SelectRecipients: undefined
   ChangePassword: undefined
 }
 

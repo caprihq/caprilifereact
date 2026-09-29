@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet } from 'react-native'
+import { Linking, ScrollView, StyleSheet } from 'react-native'
 import { size } from '@/theme'
 
 import { Text } from '@/components/Text'
@@ -11,9 +11,16 @@ import { base44Config } from '@/config'
  *
  * Apple fetches the App Store Connect privacy URL logged-out, and a user who
  * cannot sign in still needs to read this — so it must never sit behind the
- * auth gate. The canonical copy lives at public-site/privacy.html; this
- * summarises it and links out.
+ * auth gate. It used to: the screen was registered only in the signed-in stack,
+ * which is why the login screen reached for the web app's page instead. It is now
+ * in both stacks, one component, and the login screen opens this.
+ *
+ * The canonical copy lives at public-site/privacy.html; this summarises it and
+ * links out.
  */
+
+/** The long-form policy this screen summarises. */
+const FULL_POLICY_URL = `${base44Config.appBaseUrl}/privacy`
 
 const SECTIONS = [
   {
@@ -55,8 +62,16 @@ export const PrivacyScreen = () => {
         </Text>
       ))}
 
-      <Text variant="caption" tone="muted">
-        Full policy: {base44Config.appBaseUrl}/privacy
+      {/* Tappable, not just quoted: naming a URL the reader cannot open is the
+          same fault as the untappable "you agree to our terms" line this app
+          already had once. */}
+      <Text
+        variant="caption"
+        tone="accent"
+        accessibilityRole="link"
+        onPress={() => void Linking.openURL(FULL_POLICY_URL)}
+      >
+        Read the full policy
       </Text>
     </ScrollView>
   )

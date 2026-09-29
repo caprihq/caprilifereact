@@ -8,6 +8,10 @@ import {
   ForgotPasswordScreen,
   ResetPasswordScreen,
 } from '@/features/auth'
+// Deep import, not the feature barrel: `@/features/profile` re-exports ProfileScreen,
+// which reaches the task screens, and pulling those in to draw a login screen is the
+// cold-start regression `startupGraph.test.ts` exists to catch.
+import { PrivacyScreen } from '@/features/profile/screens/PrivacyScreen'
 import { useTheme } from '@/hooks/useTheme'
 import { buildHeaderOptions } from '../navigationTheme'
 import { gestureOptions, pushAnimation } from '../screenOptions'
@@ -37,6 +41,13 @@ export const AuthStack = () => {
       }}
     >
       <Stack.Screen name="Login" component={LoginScreen} />
+      {/* Shared with the signed-in stack rather than duplicated: one policy, one
+          copy of the words, no way for the two to drift apart. */}
+      <Stack.Screen
+        name="Privacy"
+        component={PrivacyScreen}
+        options={{ headerShown: true, title: 'Privacy', headerBackTitle: 'Back' }}
+      />
       <Stack.Screen
         name="EmailSignIn"
         component={EmailSignInScreen}
