@@ -64,6 +64,17 @@ export const useOnboarding = () => {
     saving,
     finish,
     skip: markDone,
-    suggestedName: user?.full_name?.split(' ')[0] ?? '',
+    /**
+     * The name the provider already gave us.
+     *
+     * App Review guideline 4: a user who signs in with Apple must not then be asked
+     * for a name Apple has already supplied. `display_name` first because it is what
+     * the account actually carries — the previous version read only `full_name`, so
+     * anyone whose name arrived under the other field was asked again.
+     *
+     * The whole name, not the first word. It is prefilled into a field the user can
+     * edit, and truncating it to "Ky" is a change they did not ask for.
+     */
+    suggestedName: user?.display_name ?? user?.full_name ?? '',
   }
 }

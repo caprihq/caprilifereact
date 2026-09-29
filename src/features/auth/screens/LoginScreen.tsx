@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native'
+import { Linking, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 
@@ -9,6 +9,11 @@ import { Text } from '@/components/Text'
 import { useConfirmExit } from '@/hooks/useHardwareBack'
 import { useTheme } from '@/hooks/useTheme'
 import { size } from '@/theme'
+
+/** Apple's standard EULA, which is what the App Store shows for CAPRI. */
+const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'
+/** The same policy the web app serves, so the two cannot say different things. */
+const PRIVACY_URL = 'https://capriforlifev1.base44.app/Privacy'
 import type { AuthNavigation } from '@/navigation/types'
 import { useAuth } from '../model/AuthContext'
 import { useProviderSignIn } from '../hooks/useProviderSignIn'
@@ -72,16 +77,56 @@ export const LoginScreen = () => {
         <FormError message={errorMessage ?? provider.error} />
       </View>
 
-      <Text variant="caption" tone="muted" align="center" style={styles.terms}>
-        By continuing you agree to CAPRI&apos;s terms.
-        </Text>
+      <LegalLinks />
       </SafeAreaView>
     </MoodBackground>
   )
 }
 
+/**
+ * Terms and Privacy, before anyone signs in.
+ *
+ * App Review expects both to be reachable from the point an account is created, and
+ * the line here said "By continuing you agree to CAPRI's terms" with nothing to tap —
+ * an agreement to something the user had no way to read.
+ *
+ * Both open outside the app. The in-app Privacy screen lives in the signed-in stack
+ * and cannot be reached from here, which is the whole point: this is for someone who
+ * has no account yet.
+ */
+const LegalLinks = () => {
+  const theme = useTheme()
+
+  return (
+    <View style={[styles.terms, { gap: theme.spacing.xs }]}>
+      <Text variant="caption" tone="muted" align="center">
+        By continuing you agree to
+      </Text>
+      <View style={[styles.links, { gap: theme.spacing.lg }]}>
+        <Text
+          variant="caption"
+          tone="accent"
+          accessibilityRole="link"
+          onPress={() => void Linking.openURL(TERMS_URL)}
+        >
+          Terms of Use
+        </Text>
+        <Text
+          variant="caption"
+          tone="accent"
+          accessibilityRole="link"
+          onPress={() => void Linking.openURL(PRIVACY_URL)}
+        >
+          Privacy Policy
+        </Text>
+      </View>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  links: { flexDirection: 'row', justifyContent: 'center' },
   body: { flex: 1, justifyContent: 'center', paddingHorizontal: size.screenPadding },
   terms: { paddingHorizontal: size.screenPadding, paddingBottom: size.screenPadding },
 })

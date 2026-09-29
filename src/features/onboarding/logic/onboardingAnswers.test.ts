@@ -85,3 +85,20 @@ describe('needsOnboarding', () => {
     expect(needsOnboarding(undefined, false)).toBe(false)
   })
 })
+
+describe('a name is never required — App Review guideline 4', () => {
+  it('saves a profile with no name at all', () => {
+    // Apple returns a name only on the first authorisation, and only if the person
+    // agrees to share it. Someone who declines must still be able to finish setup.
+    const saved = toProfilePatch({
+      name: '',
+      workingHours: '9:00 AM - 5:00 PM',
+      focusTime: 'Morning',
+      taskDuration: '30 min',
+      timeZone: 'UTC',
+    })
+
+    expect(saved.display_name).toBe('')
+    expect(saved.energy_peak_hours).toEqual([8, 9, 10])
+  })
+})

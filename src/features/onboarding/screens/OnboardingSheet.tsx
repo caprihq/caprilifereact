@@ -34,7 +34,14 @@ import { OptionRow, StepProgress } from '../components/OnboardingStep'
  */
 
 const STEPS = [
-  { id: 'name', title: 'What should we call you?', subtitle: "We'll use this to personalise CAPRI." },
+  {
+    id: 'name',
+    title: 'What should we call you?',
+    // "Optional" stated outright: a field with no asterisk and a live Next button
+    // still reads as required to most people, and Apple's guideline is about what
+    // the user is made to do, not what the code enforces.
+    subtitle: "Optional — we'll use this to personalise CAPRI.",
+  },
   {
     id: 'hours',
     title: 'When do you usually work?',
@@ -116,12 +123,19 @@ export const OnboardingSheet = ({
         />
 
         <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.md }}>
-          <Button
-            label={isLast ? 'Finish setup' : 'Next'}
-            onPress={next}
-            loading={saving}
-            disabled={current.id === 'name' && !name.trim()}
-          />
+          {/*
+            Nothing here is required, including the name.
+            
+            App Review guideline 4: a user who signs in with Apple must not be made to
+            supply a name afterwards. Apple returns one only on the first
+            authorisation, and only if the person agrees to share it — so gating this
+            button on a non-empty name trapped anyone who declined, or who had signed
+            in before, on a step they could not complete or leave.
+            
+            Personalisation is worth asking for and not worth blocking on: an unnamed
+            user is greeted by the time of day instead.
+          */}
+          <Button label={isLast ? 'Finish setup' : 'Next'} onPress={next} loading={saving} />
           {step > 0 ? (
             <Button label="Back" variant="ghost" onPress={() => setStep(step - 1)} />
           ) : (
