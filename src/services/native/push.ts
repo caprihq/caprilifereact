@@ -1,12 +1,7 @@
 import { Platform } from 'react-native'
-import {
-  AuthorizationStatus,
-  getAPNSToken,
-  getMessaging,
-  registerDeviceForRemoteMessages,
-  requestPermission,
-} from '@react-native-firebase/messaging'
 import DeviceInfo from 'react-native-device-info'
+
+import { capriPush } from '../../../modules/capri-push'
 import { logWarn } from '@/utils'
 
 /**
@@ -15,12 +10,16 @@ import { logWarn } from '@/utils'
  * Returns **null** when permission is denied or anything goes wrong — callers
  * treat null as "no push" and carry on, so this must never throw.
  *
- * `getAPNSToken` gives the raw Apple token rather than an FCM one. Firebase is
- * only the plumbing that asks iOS for it: nothing in the delivery path touches
- * Firebase, and the backend posts straight to Apple.
+ * **No Firebase anywhere in this path.** The backend signs its own pushes and posts
+ * to Apple; the token comes from the app delegate through `CapriPush`. Reading it
+ * from `@react-native-firebase/messaging` used to make the one Apple-only feature
+ * in the product depend on an unrelated SDK having initialised, and when it had not,
+ * registration returned nothing and no reminder was ever delivered.
  *
- * @react-native-firebase v26 uses a modular API — free functions taking a
- * Messaging instance; the old `messaging().x()` namespaced style is gone.
+ * TODO(android): Android needs an FCM token instead, from
+ * `@react-native-firebase/messaging`. The backend routes on `PushDevice.provider`,
+ * so adding it is a token here and an `FCMProvider` there — nothing that sends
+ * changes. Out of scope for this milestone.
  */
 
 export type PushRegistration = {
@@ -53,15 +52,19 @@ export const getPushRegistration = async (): Promise<PushRegistration | null> =>
     // something to fake from this function (§0.2).
     if (Platform.OS === 'android') return null
 
-    const messaging = getMessaging()
-    const status = await requestPermission(messaging)
-    const allowed =
-      status === AuthorizationStatus.AUTHORIZED || status === AuthorizationStatus.PROVISIONAL
-    if (!allowed) return null
-
-    // Must be registered before the APNs token is available.
-    await registerDeviceForRemoteMessages(messaging)
-    const token = await getAPNSToken(messaging)
+    /**
+     * Asked for, but not required.
+     *
+     * A refusal used to end this function, which meant the device was never
+     * registered with the backend — and that also cut off **silent** pushes, which
+     * need no permission and are how the home-screen widget stays current while the
+     * app is closed. Someone who declines reminders should still get a working
+     * widget. Whether reminders are *shown* is iOS's decision and the user's, and
+     * `notification_enabled` gates them server-side regardless.
+     *
+     * iOS shows its own prompt when the app registers; nothing is requested here.
+     */
+    const token = await capriPush?.getToken()
     if (!token) return null
 
     return { token, environment: __DEV__ ? 'sandbox' : 'production' }
