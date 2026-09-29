@@ -1,7 +1,7 @@
 import { Platform } from 'react-native'
 import Purchases from 'react-native-purchases'
 import type { CustomerInfo } from 'react-native-purchases'
-import { logError } from '@/utils'
+import { describeError, diag, logError, logWarn } from '@/utils'
 import { IAP_PRODUCT_MISSING, IAP_UNAVAILABLE } from '@/features/profile/logic/purchaseNotice'
 
 /**
@@ -42,12 +42,44 @@ let configured = false
 /** True when a key exists for the running platform. */
 export const isIAPAvailable = (): boolean => !!API_KEYS[Platform.OS]
 
+/**
+ * Send RevenueCat's own logging somewhere sensible.
+ *
+ * By default the SDK writes straight to `console.error` — including for a purchase
+ * the *user* cancelled, which is not an error at all. React Native turns any
+ * `console.error` into a full-screen red LogBox, so tapping Cancel on Apple's
+ * payment sheet threw a developer stack trace over the whole app, complete with a
+ * source excerpt from `purchases.js`. Nothing was broken; someone changed their mind.
+ *
+ * Redirecting the handler puts those messages in the same log as everything else,
+ * where they can be read after the fact instead of shouted at whoever is holding the
+ * phone. Cancellation drops to a diagnostic line, since it is an ordinary outcome.
+ */
+const CANCELLATION = /cancel/i
+
+const routeSdkLogs = (): void => {
+  try {
+    Purchases.setLogHandler((_level, message) => {
+      if (CANCELLATION.test(message)) {
+        diag('iap:cancelled', { message })
+        return
+      }
+      logWarn('[CapriIAP]', message)
+    })
+  } catch (error) {
+    // An older SDK without a log handler is not worth failing configuration over.
+    logWarn('[CapriIAP] could not redirect SDK logging', error)
+  }
+}
+
 export const configureIAP = (): void => {
   if (configured) return
   const apiKey = API_KEYS[Platform.OS]
   if (!apiKey) return
 
   try {
+    // Before `configure`, so nothing the SDK says on the way up reaches LogBox.
+    routeSdkLogs()
     Purchases.configure({ apiKey })
     configured = true
   } catch (error) {
@@ -69,6 +101,48 @@ export const setIAPUser = async (userId: unknown): Promise<null> => {
     logError('[CapriIAP] logIn failed', error)
   }
   return null
+}
+
+/**
+ * What the store says these products cost.
+ *
+ * The paywall used to render two hardcoded labels — "Executive — Monthly" and
+ * "Executive — Annual" — so someone tapped *buy* without ever being shown a price.
+ * That is a poor way to ask for money and it is also what App Review looks for on a
+ * subscription screen.
+ *
+ * Prices come from the store rather than from us, so they are already localised into
+ * the right currency and formatting. An empty list means the store is unreachable —
+ * a simulator, or no network — and the caller falls back to naming the plans without
+ * a figure rather than inventing one.
+ */
+export type StoreProduct = {
+  readonly id: string
+  readonly priceString: string
+}
+
+export const getStoreProducts = async (): Promise<readonly StoreProduct[]> => {
+  if (!isIAPAvailable()) return []
+  configureIAP()
+
+  try {
+    const offerings = await Purchases.getOfferings()
+    return (offerings.current?.availablePackages ?? []).map((pkg) => ({
+      id: pkg.product.identifier,
+      priceString: pkg.product.priceString,
+    }))
+  } catch (error) {
+    /**
+     * A diagnostic, not an error.
+     *
+     * No store means a simulator, a test device, or a bad moment on the network —
+     * all ordinary, and the paywall already falls back to naming the plans without
+     * a figure. Logging it at error level put a full-screen red LogBox in front of
+     * anyone who opened the plan screen while testing.
+     */
+    diag('iap:prices:unavailable', { message: describeError(error).message })
+    return []
+  }
 }
 
 /**

@@ -1,9 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { APP_GROUP_ID } from '../../modules/capri-app-group/constants'
+import {
+  APP_GROUP_ID,
+  LEGACY_WIDGET_TOKEN_KEY,
+  WIDGET_SNAPSHOT_KEY,
+  WIDGET_SNAPSHOT_MAX_AGE_HOURS,
+  WIDGET_PUSH_PAYLOAD_KEY,
+  WIDGET_SNAPSHOT_SCHEMA,
+} from '../../modules/capri-app-group/constants'
 import { KEYCHAIN_ACCESS_GROUP, SECRET_KEYS, keychainServiceFor } from '@/services/storage'
 import { base44Config } from '@/config'
+import { TASK_LINK_PATH } from '../../modules/capri-deep-link/constants'
 import { palette } from '@/theme/tokens'
 
 /**
@@ -24,6 +32,10 @@ const read = (relative: string) => readFileSync(join(root, relative), 'utf8')
 const infoPlist = () => read('ios/CAPRI/Info.plist')
 const entitlements = () => read('ios/CAPRI/CAPRI.entitlements')
 const appGroupSwift = () => read('ios/CAPRI/AppGroup/CapriAppGroup.swift')
+const widgetSwift = () => read('ios/CapriWidget/CapriWidget.swift')
+const appDelegate = () => read('ios/CAPRI/AppDelegate.swift')
+const linkingConfig = () => read('src/navigation/linking.ts')
+const widgetEntitlements = () => read('ios/CapriWidget/CapriWidget.entitlements')
 
 describe('App Group identifiers stay in sync', () => {
   it('the entitlements file grants the same App Group', () => {
@@ -368,5 +380,160 @@ describe('theme tokens exist for the splash colours', () => {
   it('exposes the light and dark backgrounds the launch screen matches', () => {
     expect(palette.white).toBe('#FFFFFF')
     expect(palette.slate950).toBe('#020617')
+  })
+})
+
+/**
+ * The widget extension runs in its own process and cannot import a line of the
+ * app's TypeScript, so every value it needs is duplicated in Swift. Each of these
+ * failures is invisible at runtime — the widget simply renders "Open CAPRI to sign
+ * in" forever, or quietly talks to the wrong backend.
+ */
+describe('a task has one URL, and every surface uses it', () => {
+  const taskURL = `${base44Config.authCallbackScheme}://${TASK_LINK_PATH}/`
+
+  it('the route table maps the task path', () => {
+    expect(linkingConfig()).toContain('TaskDetail')
+    expect(linkingConfig()).toContain('TASK_LINK_PATH')
+  })
+
+  it('a tapped notification builds that URL', () => {
+    // The reminder push carries `task_id`; this is what turns it into a route.
+    expect(appDelegate()).toContain('"task_id"')
+    expect(appDelegate()).toContain(taskURL)
+  })
+
+  it('a tapped widget builds the same URL', () => {
+    // A widget extension cannot import the app's constants, so this is the guard
+    // that keeps its hardcoded copy honest.
+    expect(widgetSwift()).toContain(taskURL)
+  })
+
+  it('the widget makes each queued task its own tap target', () => {
+    // One `widgetURL` for the whole medium widget would send every tap to the
+    // hero, which is worse than not being tappable.
+    expect(widgetSwift()).toContain('Link(destination:')
+    expect(widgetSwift()).toContain('.widgetURL(')
+  })
+
+  it('a notification tap is parked rather than emitted', () => {
+    // Emitting races React Native's startup, and loses on the cold launch a user
+    // is most likely to notice.
+    expect(appDelegate()).toContain('CapriDeepLink.park')
+    expect(linkingConfig()).toContain('takePendingLink')
+  })
+})
+
+describe('refreshing the widget has exactly one owner', () => {
+  it('only reloadAll asks WidgetKit to rebuild', () => {
+    /**
+     * Storage writes must stay silent. They used to reload, and callers reload
+     * deliberately after writing, so a single publish rebuilt the timeline twice
+     * and the launch-time cleanup of a key that rarely exists rebuilt it for
+     * nothing. Apple throttles apps that reload too often, so the waste is paid
+     * back later as refreshes that do not happen.
+     */
+    const calls = appGroupSwift().match(/Self\.reloadWidgets\(\)/g) ?? []
+    expect(calls).toHaveLength(1)
+  })
+
+  it('the caller reloads after publishing, so one change is one rebuild', () => {
+    const hook = read('src/features/tasks/hooks/useWidgetSnapshot.ts')
+    expect(hook).toContain('publishWidgetSnapshot(snapshot).then(reloadWidgets)')
+  })
+
+  it('the legacy-token cleanup reloads nothing', () => {
+    // It runs on every launch and removes a key that exists only on phones
+    // upgraded from the Capacitor app.
+    const publisher = read('src/features/tasks/services/widgetPublisher.ts')
+    const cleanup = publisher.slice(publisher.indexOf('clearLegacyWidgetToken'))
+    expect(cleanup).not.toContain('reloadAll')
+  })
+})
+
+describe('the widget extension agrees with the app', () => {
+  it('reads the Keychain service the app writes', () => {
+    // The single most breakable link: the app files the token under this service
+    // name, and the widget looks it up by exactly this string.
+    expect(widgetSwift()).toContain(keychainServiceFor(SECRET_KEYS.accessToken))
+  })
+
+  it('looks up the account name react-native-keychain stores', () => {
+    // The library puts the key itself in the account slot; querying the wrong
+    // account finds nothing even with the right service.
+    expect(widgetSwift()).toContain(`"${SECRET_KEYS.accessToken}"`)
+  })
+
+  it('shares the Keychain access group with the app', () => {
+    // Neither side passes an access group at runtime, so iOS files the item under
+    // the first entry in the entitlements — which must therefore be the same one.
+    expect(widgetEntitlements()).toContain(`$(AppIdentifierPrefix)${KEYCHAIN_ACCESS_GROUP}`)
+    expect(entitlements()).toContain(`$(AppIdentifierPrefix)${KEYCHAIN_ACCESS_GROUP}`)
+  })
+
+  it('shares the App Group, so the cached feed is the same store', () => {
+    expect(widgetSwift()).toContain(APP_GROUP_ID)
+    expect(widgetEntitlements()).toContain(APP_GROUP_ID)
+  })
+
+  it('calls the same backend the app calls', () => {
+    expect(widgetSwift()).toContain(base44Config.appBaseUrl)
+  })
+
+  it('deletes the credential the Capacitor app left in shared storage', () => {
+    // The old app published the session token under this key. Upgrading keeps the
+    // container, so the app has to remove it explicitly.
+    expect(LEGACY_WIDGET_TOKEN_KEY).toBe('capri_widget_token')
+    expect(read('src/features/tasks/services/widgetPublisher.ts')).toContain(
+      'LEGACY_WIDGET_TOKEN_KEY',
+    )
+  })
+
+  it('never reads the token from App Group storage', () => {
+    // How the Capacitor app did it: a live credential in an unencrypted store that
+    // rides into device backups. The Keychain read is the reason this port exists.
+    expect(widgetSwift()).not.toContain('capri_widget_token')
+    expect(widgetSwift()).toContain('SecItemCopyMatching')
+  })
+
+  it('reads the snapshot key the app publishes to', () => {
+    // The app writes here and the widget reads here. A typo on either side is a
+    // permanently empty widget with nothing in any log to explain it.
+    expect(widgetSwift()).toContain(WIDGET_SNAPSHOT_KEY)
+  })
+
+  it('agrees on the snapshot shape version', () => {
+    expect(widgetSwift()).toContain(`snapshotSchema = ${String(WIDGET_SNAPSHOT_SCHEMA)}`)
+  })
+
+  it('agrees on when a snapshot has gone stale', () => {
+    // Disagreement here means either needless network calls or a widget that trusts
+    // data the app considers expired.
+    expect(widgetSwift()).toContain(
+      `snapshotMaxAgeHours = ${String(WIDGET_SNAPSHOT_MAX_AGE_HOURS)}`,
+    )
+  })
+
+  it('reads a pushed snapshot from the key the backend sends', () => {
+    // The likeliest bug in the push path, and the hardest to notice: delivered,
+    // unrecognised, silently ignored.
+    expect(appDelegate()).toContain(`"${WIDGET_PUSH_PAYLOAD_KEY}"`)
+  })
+
+  it('writes a pushed snapshot to the key the widget reads', () => {
+    expect(appDelegate()).toContain('widgetSnapshotKey')
+    expect(appGroupSwift()).toContain(`widgetSnapshotKey = "${WIDGET_SNAPSHOT_KEY}"`)
+  })
+
+  it('registers for remote notifications without waiting for permission', () => {
+    // Registration is the route; permission is only whether an alert may appear.
+    // Requiring permission first cut off the silent pushes the widget depends on.
+    expect(appDelegate()).toContain('application.registerForRemoteNotifications()')
+  })
+
+  it('keeps the widget kind the Capacitor app registered', () => {
+    // An existing placed widget is bound to this identifier; changing it makes the
+    // user's widget vanish on upgrade rather than carry over.
+    expect(widgetSwift()).toContain('"CapriDailyPriorities"')
   })
 })

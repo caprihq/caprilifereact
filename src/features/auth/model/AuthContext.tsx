@@ -8,8 +8,12 @@ import {
 } from '../services/authService'
 import type { AuthResult } from '../services/authService'
 import { registerForPush } from '../services/pushRegistration'
+import {
+  clearWidgetSnapshot,
+  reloadWidgets,
+} from '@/features/tasks/services/widgetPublisher'
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive'
-import { setCrashUser } from '@/services'
+import { setAnalyticsUser, setCrashUser } from '@/services'
 import { setIAPUser } from '@/services/native'
 import type { User } from '@/types/entities'
 
@@ -64,6 +68,9 @@ export const AuthProvider = ({ children }: { readonly children: ReactNode }) => 
   const applyResult = useCallback((result: AuthResult) => {
     const next = toState(result)
     setCrashUser(next.user?.id ?? null)
+    // Same opaque id as Crashlytics gets, and never the email: the two have to
+    // agree or a crash cannot be matched to the session that produced it.
+    setAnalyticsUser(next.user?.id ?? null)
     // RevenueCat's appUserID must match the Base44 id or an existing
     // subscriber's entitlement cannot be attributed to them on a new device.
     // Fire-and-forget: a failed logIn only degrades attribution, and the
@@ -105,7 +112,11 @@ export const AuthProvider = ({ children }: { readonly children: ReactNode }) => 
   const signOut = useCallback(async () => {
     await signOutService()
     setCrashUser(null)
+    setAnalyticsUser(null)
     setState({ status: 'unauthenticated', user: null, errorMessage: null })
+    // Otherwise a signed-out phone keeps the previous user's tasks on its home
+    // screen until something overwrites them.
+    void clearWidgetSnapshot().then(reloadWidgets)
   }, [])
 
   /**
@@ -128,6 +139,9 @@ export const AuthProvider = ({ children }: { readonly children: ReactNode }) => 
   useEffect(() => {
     if (!userId) return
     void registerForPush()
+    // Home publishes the snapshot itself; this covers the gap before it mounts, so a
+    // widget stuck on "Open CAPRI to sign in" recovers as soon as someone signs in.
+    void reloadWidgets()
   }, [userId])
 
   const value = useMemo(

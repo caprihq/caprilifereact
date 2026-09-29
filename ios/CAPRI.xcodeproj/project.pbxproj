@@ -7,23 +7,75 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		030CC83E6FAEC1D73E78FAC3 /* CapriPush.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2A594BCB90E49ECA62FB00 /* CapriPush.swift */; };
 		0C80B921A6F3F58F76C31292 /* libPods-CAPRI.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-CAPRI.a */; };
+		0D03211C461914A31CAD499B /* CapriDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F90697D00B2711B87ACB5B2 /* CapriDeepLink.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		20DC826E6132E7648C8E85DB /* CapriWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DFA4D79FF35EB2372A895FD6 /* CapriWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3F94C810A57EB3197DC6461F /* CapriWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60FE494CDDCE0D2B41A0F59A /* CapriWidget.swift */; };
+		60B3B2C138A6C904A4CA359A /* CapriWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D8FDAD99B594942E5AFBDA /* CapriWidgetBundle.swift */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		941402DAE42C23C48EFA2E84 /* CapriDeepLink.m in Sources */ = {isa = PBXBuildFile; fileRef = 403D3AB4CC81C8352730F7A0 /* CapriDeepLink.m */; };
 		BB5EA55FB08C583ADEB4A9FD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		C1D5793B43E90E591F9D292D /* CapriAppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F8E77CA72D7917B37632E2 /* CapriAppGroup.swift */; };
+		C3CBAD128E22FA70EDC4AE08 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFE17ED41A124944A140800E /* Foundation.framework */; };
+		C85074D357D681705FE89C6A /* CapriAppGroup.m in Sources */ = {isa = PBXBuildFile; fileRef = C7B977D6CE3144BF5356AC1E /* CapriAppGroup.m */; };
+		D2FD169E8FDE8851194A65C3 /* CapriPush.m in Sources */ = {isa = PBXBuildFile; fileRef = CAC6EB34203A4A8A86E7C031 /* CapriPush.m */; };
+		D8B88713D33A7CE1538566B6 /* CapriStartup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED07B41EE0698F0737FB53F /* CapriStartup.swift */; };
+		E7789C5B51A91D1877271039 /* CapriStartup.m in Sources */ = {isa = PBXBuildFile; fileRef = 73876FC4D2234877263913FC /* CapriStartup.m */; };
+		F7713A700F2B58DED4BA93D0 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 92E2276768CDB58BDC2B97E9 /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		535AB4272706B1CD20A96B2D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C13AA1D9789D4B498001CBBF;
+			remoteInfo = CapriWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3A68E1082F72A106645DBC77 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				20DC826E6132E7648C8E85DB /* CapriWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		13B07F961A680F5B00A75B9A /* CAPRI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CAPRI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = CAPRI/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = CAPRI/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = CAPRI/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		1D1B926752DF3EFF09CCAAD0 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-CAPRI.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CAPRI.debug.xcconfig"; path = "Target Support Files/Pods-CAPRI/Pods-CAPRI.debug.xcconfig"; sourceTree = "<group>"; };
+		403D3AB4CC81C8352730F7A0 /* CapriDeepLink.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = CapriDeepLink.m; sourceTree = "<group>"; };
+		4A2A594BCB90E49ECA62FB00 /* CapriPush.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CapriPush.swift; path = CAPRI/Push/CapriPush.swift; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-CAPRI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CAPRI.release.xcconfig"; path = "Target Support Files/Pods-CAPRI/Pods-CAPRI.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-CAPRI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-CAPRI.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		60FE494CDDCE0D2B41A0F59A /* CapriWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CapriWidget.swift; sourceTree = "<group>"; };
+		73876FC4D2234877263913FC /* CapriStartup.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = CapriStartup.m; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = CAPRI/AppDelegate.swift; sourceTree = "<group>"; };
+		76F8E77CA72D7917B37632E2 /* CapriAppGroup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CapriAppGroup.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = CAPRI/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		92E2276768CDB58BDC2B97E9 /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "CAPRI/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		939592A89579867E01BC24B1 /* CapriWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = CapriWidget.entitlements; sourceTree = "<group>"; };
+		9ED07B41EE0698F0737FB53F /* CapriStartup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CapriStartup.swift; sourceTree = "<group>"; };
+		9F90697D00B2711B87ACB5B2 /* CapriDeepLink.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CapriDeepLink.swift; sourceTree = "<group>"; };
+		B2D8FDAD99B594942E5AFBDA /* CapriWidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CapriWidgetBundle.swift; sourceTree = "<group>"; };
+		C7B977D6CE3144BF5356AC1E /* CapriAppGroup.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = CapriAppGroup.m; sourceTree = "<group>"; };
+		CAC6EB34203A4A8A86E7C031 /* CapriPush.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = CapriPush.m; path = CAPRI/Push/CapriPush.m; sourceTree = "<group>"; };
+		DFA4D79FF35EB2372A895FD6 /* CapriWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CapriWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		DFE17ED41A124944A140800E /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -33,6 +85,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				0C80B921A6F3F58F76C31292 /* libPods-CAPRI.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DFB25FFA7AD904B3E41B7487 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C3CBAD128E22FA70EDC4AE08 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -47,17 +107,54 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+				91EE324C8BD320C01E4EB38F /* AppGroup */,
+				177B56D355AE889EBC4814A7 /* DeepLink */,
+				92E2276768CDB58BDC2B97E9 /* GoogleService-Info.plist */,
+				CA0724F70755F0143BAB81A7 /* Push */,
 			);
 			name = CAPRI;
 			sourceTree = "<group>";
+		};
+		177B56D355AE889EBC4814A7 /* DeepLink */ = {
+			isa = PBXGroup;
+			children = (
+				9F90697D00B2711B87ACB5B2 /* CapriDeepLink.swift */,
+				403D3AB4CC81C8352730F7A0 /* CapriDeepLink.m */,
+				9ED07B41EE0698F0737FB53F /* CapriStartup.swift */,
+				73876FC4D2234877263913FC /* CapriStartup.m */,
+			);
+			name = DeepLink;
+			path = CAPRI/DeepLink;
+			sourceTree = SOURCE_ROOT;
+		};
+		28AFC8B9EC447D18813CF527 /* CapriWidget */ = {
+			isa = PBXGroup;
+			children = (
+				60FE494CDDCE0D2B41A0F59A /* CapriWidget.swift */,
+				B2D8FDAD99B594942E5AFBDA /* CapriWidgetBundle.swift */,
+				1D1B926752DF3EFF09CCAAD0 /* Info.plist */,
+				939592A89579867E01BC24B1 /* CapriWidget.entitlements */,
+			);
+			name = CapriWidget;
+			path = CapriWidget;
+			sourceTree = SOURCE_ROOT;
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				5DCACB8F33CDC322A6C60F78 /* libPods-CAPRI.a */,
+				382709BA584CE5E672665EB7 /* iOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		382709BA584CE5E672665EB7 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				DFE17ED41A124944A140800E /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -75,6 +172,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				28AFC8B9EC447D18813CF527 /* CapriWidget */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -85,9 +183,20 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* CAPRI.app */,
+				DFA4D79FF35EB2372A895FD6 /* CapriWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
+		};
+		91EE324C8BD320C01E4EB38F /* AppGroup */ = {
+			isa = PBXGroup;
+			children = (
+				76F8E77CA72D7917B37632E2 /* CapriAppGroup.swift */,
+				C7B977D6CE3144BF5356AC1E /* CapriAppGroup.m */,
+			);
+			name = AppGroup;
+			path = CAPRI/AppGroup;
+			sourceTree = SOURCE_ROOT;
 		};
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
@@ -96,6 +205,15 @@
 				5709B34CF0A7D63546082F79 /* Pods-CAPRI.release.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		CA0724F70755F0143BAB81A7 /* Push */ = {
+			isa = PBXGroup;
+			children = (
+				4A2A594BCB90E49ECA62FB00 /* CapriPush.swift */,
+				CAC6EB34203A4A8A86E7C031 /* CapriPush.m */,
+			);
+			name = Push;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -108,6 +226,7 @@
 				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
+				3A68E1082F72A106645DBC77 /* Embed Foundation Extensions */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
@@ -118,11 +237,29 @@
 			buildRules = (
 			);
 			dependencies = (
+				9C72DD41DDA655A30036A8C0 /* PBXTargetDependency */,
 			);
 			name = CAPRI;
 			productName = CAPRI;
 			productReference = 13B07F961A680F5B00A75B9A /* CAPRI.app */;
 			productType = "com.apple.product-type.application";
+		};
+		C13AA1D9789D4B498001CBBF /* CapriWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EB09370ED4D7C668CE420BC5 /* Build configuration list for PBXNativeTarget "CapriWidgetExtension" */;
+			buildPhases = (
+				E4E59AFA537F117A63F4667A /* Sources */,
+				DFB25FFA7AD904B3E41B7487 /* Frameworks */,
+				7852839E9459F637C1E3E558 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CapriWidgetExtension;
+			productName = CapriWidgetExtension;
+			productReference = DFA4D79FF35EB2372A895FD6 /* CapriWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -151,6 +288,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* CAPRI */,
+				C13AA1D9789D4B498001CBBF /* CapriWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -163,6 +301,14 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				BB5EA55FB08C583ADEB4A9FD /* PrivacyInfo.xcprivacy in Resources */,
+				F7713A700F2B58DED4BA93D0 /* GoogleService-Info.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7852839E9459F637C1E3E558 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -276,12 +422,67 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				C1D5793B43E90E591F9D292D /* CapriAppGroup.swift in Sources */,
+				C85074D357D681705FE89C6A /* CapriAppGroup.m in Sources */,
+				0D03211C461914A31CAD499B /* CapriDeepLink.swift in Sources */,
+				941402DAE42C23C48EFA2E84 /* CapriDeepLink.m in Sources */,
+				D8B88713D33A7CE1538566B6 /* CapriStartup.swift in Sources */,
+				E7789C5B51A91D1877271039 /* CapriStartup.m in Sources */,
+				030CC83E6FAEC1D73E78FAC3 /* CapriPush.swift in Sources */,
+				D2FD169E8FDE8851194A65C3 /* CapriPush.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E4E59AFA537F117A63F4667A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F94C810A57EB3197DC6461F /* CapriWidget.swift in Sources */,
+				60B3B2C138A6C904A4CA359A /* CapriWidgetBundle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		9C72DD41DDA655A30036A8C0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = CapriWidgetExtension;
+			target = C13AA1D9789D4B498001CBBF /* CapriWidgetExtension */;
+			targetProxy = 535AB4272706B1CD20A96B2D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		0902D50313FBC37C1CD43C38 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = CapriWidget/CapriWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 26;
+				DEVELOPMENT_TEAM = 6672DRVT87;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = CapriWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 3.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.base69aa4c4d4f33993320ae7f08.app.CapriWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-CAPRI.debug.xcconfig */;
@@ -289,7 +490,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = CAPRI/CAPRI.entitlements;
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				DEVELOPMENT_TEAM = 6672DRVT87;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = CAPRI/Info.plist;
@@ -321,7 +522,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = CAPRI/CAPRIRelease.entitlements;
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				DEVELOPMENT_TEAM = 6672DRVT87;
 				INFOPLIST_FILE = CAPRI/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -343,6 +544,34 @@
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
+		};
+		35B3F99DB3F3720162E654E2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = CapriWidget/CapriWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 26;
+				DEVELOPMENT_TEAM = 6672DRVT87;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = CapriWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 3.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.base69aa4c4d4f33993320ae7f08.app.CapriWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
 		};
 		83CBBA201A601CBA00E9B192 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -519,6 +748,15 @@
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EB09370ED4D7C668CE420BC5 /* Build configuration list for PBXNativeTarget "CapriWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0902D50313FBC37C1CD43C38 /* Release */,
+				35B3F99DB3F3720162E654E2 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
