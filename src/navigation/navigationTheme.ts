@@ -54,4 +54,18 @@ export const buildHeaderOptions = (theme: AppTheme): NativeStackNavigationOption
   // A hairline under the header competes with card borders; the background
   // already separates it.
   headerShadowVisible: false,
+  /**
+   * Chevron only — no text beside the back button.
+   *
+   * iOS labels a back button with the *previous* screen's title. The screen
+   * beneath every push here is the tab navigator, which draws its own header and
+   * so carries no title, and React Navigation falls back to the route name. The
+   * result was a back button reading "Tabs" — an internal name, on screen, in
+   * the shipping app.
+   *
+   * A fixed label cannot replace it: the same push can start from Home or from
+   * Profile, so any single word is wrong half the time. The chevron alone is
+   * unambiguous from either.
+   */
+  headerBackButtonDisplayMode: 'minimal',
 })

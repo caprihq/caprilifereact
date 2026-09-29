@@ -2,7 +2,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 
 import { AdminScreen } from '@/features/admin'
 import { ChangePasswordScreen } from '@/features/auth'
-import { AddCommitmentScreen } from '@/features/commitments'
 import { PlanScreen, PrivacyScreen, SupportScreen } from '@/features/profile'
 import {
   AddTaskScreen,
@@ -46,11 +45,6 @@ export const AppStack = () => {
         options={{ ...sheetOptions, headerShown: false }}
       />
       <Stack.Screen
-        name="AddCommitment"
-        component={AddCommitmentScreen}
-        options={{ ...sheetOptions, headerShown: false }}
-      />
-      <Stack.Screen
         name="TaskDetail"
         component={TaskDetailScreen}
         options={{ ...sheetOptions, headerShown: false }}
@@ -61,7 +55,9 @@ export const AppStack = () => {
       <Stack.Screen
         name="AutoSchedule"
         component={AutoScheduleScreen}
-        options={{ presentation: 'modal', headerShown: false }}
+        // A fitted sheet like the others, not a full-screen modal: one card of
+        // suggestions was filling the whole screen with the rest left empty.
+        options={{ ...sheetOptions, headerShown: false }}
       />
       {/* Draws `SheetHeader` itself: Plan is reached from inside sheets as well as
           from Profile, and a modal presentation gets no back control from the

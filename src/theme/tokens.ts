@@ -138,6 +138,20 @@ export const size = {
   codeInput: 56,
   /** Horizontal gutter for full-screen content. */
   screenPadding: 24,
+  /** The coloured edge that marks a notice's tone — see NoticeCard, OfflineNotice. */
+  noticeEdge: 4,
+  /**
+   * How much of the screen the bottom tab bar covers.
+   *
+   * The bar is a **native**, translucent view, so it draws over the page rather than
+   * pushing it up, and `@bottom-tabs/react-navigation` publishes no height to ask
+   * for. Content that scrolls under it therefore needs this cleared by hand, or the
+   * last row of every screen sits behind the bar — which is exactly what happened to
+   * Sign out on Profile.
+   *
+   * 49pt is the standard iOS bar; the rest is the floating inset this design adds.
+   */
+  tabBar: 64,
   hairline: 1,
 } as const
 

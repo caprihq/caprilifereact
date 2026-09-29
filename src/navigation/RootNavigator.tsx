@@ -1,6 +1,6 @@
-import { NavigationContainer } from '@react-navigation/native'
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
-import { Suspense, lazy, useEffect } from 'react'
+import { Suspense, lazy, useEffect, useRef } from 'react'
 import BootSplash from 'react-native-bootsplash'
 
 import { ErrorView } from '@/components/ErrorView'
@@ -8,6 +8,7 @@ import { LoadingView } from '@/components/LoadingView'
 import { useAuth } from '@/features/auth'
 import { useTheme } from '@/hooks/useTheme'
 import { linking } from './linking'
+import { reportScreenChange } from './screenTracking'
 import { buildNavigationTheme } from './navigationTheme'
 import { AuthStack } from './stacks/AuthStack'
 import type { RootStackParamList } from './types'
@@ -47,6 +48,9 @@ const AppStack = lazy(async () => {
 export const RootNavigator = () => {
   const { status, errorMessage, retry } = useAuth()
   const theme = useTheme()
+  const navigationRef = useNavigationContainerRef()
+  /** The last screen reported, so a state change that does not move anyone is quiet. */
+  const lastScreen = useRef<string | null>(null)
 
   // Hold the native splash until the session question is answered, so the app
   // never flashes a login screen at a user who is already signed in.
@@ -72,7 +76,17 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer theme={buildNavigationTheme(theme)} linking={linking}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={buildNavigationTheme(theme)}
+      linking={linking}
+      onReady={() => {
+        lastScreen.current = reportScreenChange(navigationRef, null)
+      }}
+      onStateChange={() => {
+        lastScreen.current = reportScreenChange(navigationRef, lastScreen.current)
+      }}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {status === 'authenticated' ? (
           <Stack.Screen name="App">

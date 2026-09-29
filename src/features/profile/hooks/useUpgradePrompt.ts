@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react'
 import { useNavigation } from '@react-navigation/native'
 
+import { track } from '@/services'
+
 import type { AppNavigation } from '@/navigation/types'
 import type { GatedFeature } from '../logic/upgradeCopy'
 
@@ -28,5 +30,17 @@ export const useUpgradePrompt = () => {
     navigation.navigate('Plan')
   }, [navigation])
 
-  return { feature, prompt: setFeature, close, upgrade }
+  /**
+   * Which wall a free user met.
+   *
+   * Recorded here rather than at each gate: every caller goes through `prompt`, so
+   * one line cannot be forgotten by whoever adds the next gated feature. Paired with
+   * `upgrade_purchased`, it says which limits actually sell and which merely annoy.
+   */
+  const prompt = useCallback((gated: GatedFeature) => {
+    setFeature(gated)
+    track({ name: 'upgrade_prompted', params: { feature: gated } })
+  }, [])
+
+  return { feature, prompt, close, upgrade }
 }

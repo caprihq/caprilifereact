@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     // Clips the coloured edge to the card's corners.
     overflow: 'hidden',
   },
-  edge: { width: 4 },
+  edge: { width: size.noticeEdge },
   body: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   message: { flex: 1 },
 })

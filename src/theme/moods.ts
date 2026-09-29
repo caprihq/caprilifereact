@@ -308,7 +308,11 @@ export const MOODS = {
       accent: palette.auroraVivid,
       accentInk: palette.auroraInk,
       accentPressed: darken(palette.auroraVivid, 14),
-      wash: [alpha(palette.oceanVivid, 44), alpha(palette.auroraVivid, 34), alpha(palette.roseVivid, 18)],
+      // Lands near the page colour like every other mood. It used to finish at 18%
+      // rose, so the foot of a long screen stayed hot pink and the same white card
+      // read one way at the top and another at the bottom — the wash competing with
+      // the content instead of carrying it. Three hues, less travel.
+      wash: [alpha(palette.oceanVivid, 34), alpha(palette.auroraVivid, 22), alpha(palette.roseVivid, 8)],
       card: [alpha(palette.auroraVivid, 10), alpha(palette.auroraVivid, 0)],
       tint: alpha(palette.auroraVivid, 16),
       field: alpha(palette.auroraVivid, 22),
@@ -321,7 +325,7 @@ export const MOODS = {
       accent: palette.auroraSoft,
       accentInk: palette.auroraSoft,
       accentPressed: darken(palette.auroraSoft, 14),
-      wash: [alpha(palette.oceanSoft, 40), alpha(palette.auroraSoft, 30), alpha(palette.roseSoft, 16)],
+      wash: [alpha(palette.oceanSoft, 32), alpha(palette.auroraSoft, 22), alpha(palette.roseSoft, 8)],
       card: [alpha(palette.auroraSoft, 14), alpha(palette.auroraSoft, 0)],
       tint: alpha(palette.auroraSoft, 18),
       field: alpha(palette.auroraSoft, 24),

@@ -13,6 +13,9 @@ import { useFeedback } from '@/hooks/useFeedback'
 import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
 import { purchaseProduct, restorePurchases } from '@/services/native'
+import { track } from '@/services'
+import { priceLabelFor } from '../logic/planPricing'
+import { useStoreProducts } from '../services/useStoreProducts'
 import { reportError } from '@/services'
 import { purchaseNotice } from '../logic/purchaseNotice'
 import { usePlan } from '@/hooks/usePlan'
@@ -29,6 +32,15 @@ const PRODUCTS = [
   { id: 'capri_executive_monthly', label: 'Executive — Monthly' },
   { id: 'capri_executive_annual', label: 'Executive — Annual' },
 ] as const
+
+/**
+ * Apple's standard licence, which applies unless an app supplies its own.
+ *
+ * A subscription screen has to link both this and a privacy policy, and the links
+ * have to work. Privacy is a screen in the app; terms are a document we do not have,
+ * so this is the correct one to point at until there is a bespoke EULA.
+ */
+const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'
 
 const BENEFITS = [
   'Unlimited tasks',
@@ -52,6 +64,7 @@ export const PlanScreen = () => {
   const { show } = useFeedback()
   const { planLabel, isPaid, refreshPlan } = usePlan()
   const [busy, setBusy] = useState<string | null>(null)
+  const products = useStoreProducts()
 
   const run = useCallback(
     async (key: string, action: () => Promise<{ plan: string }>) => {
@@ -79,14 +92,7 @@ export const PlanScreen = () => {
     >
       <SheetHeader title="Plan" onClose={() => navigation.goBack()} />
 
-      <Card>
-        <Text variant="label" tone="secondary">
-          Current plan
-        </Text>
-        <Text variant="title" style={{ marginTop: theme.spacing.xs }}>
-          {planLabel}
-        </Text>
-      </Card>
+      <CurrentPlan label={planLabel} />
 
       {!isPaid ? (
         <Card>
@@ -106,8 +112,17 @@ export const PlanScreen = () => {
           ? PRODUCTS.map((product) => (
               <Button
                 key={product.id}
-                label={product.label}
-                onPress={() => void run(product.id, () => purchaseProduct(product.id))}
+                // The price comes from the store, already in the right currency.
+                label={priceLabelFor(product, products)}
+                onPress={() =>
+                  void run(product.id, async () => {
+                    const result = await purchaseProduct(product.id)
+                    // After the await, so a cancelled or failed purchase is not
+                    // counted as one — the number is meaningless otherwise.
+                    track({ name: 'upgrade_purchased', params: { product: product.id } })
+                    return result
+                  })
+                }
                 loading={busy === product.id}
                 disabled={busy !== null}
               />
@@ -132,7 +147,49 @@ export const PlanScreen = () => {
       <Text variant="caption" tone="muted" align="center">
         Subscriptions renew automatically and can be cancelled in your Apple ID settings.
       </Text>
+
+      <LegalLinks onPrivacy={() => navigation.navigate('Privacy')} />
     </ScrollView>
+  )
+}
+
+/** What the account is on today. */
+const CurrentPlan = ({ label }: { readonly label: string }) => {
+  const theme = useTheme()
+
+  return (
+    <Card>
+      <Text variant="label" tone="secondary">
+        Current plan
+      </Text>
+      <Text variant="title" style={{ marginTop: theme.spacing.xs }}>
+        {label}
+      </Text>
+    </Card>
+  )
+}
+
+/**
+ * Terms and privacy, which a subscription screen has to carry — and the links have
+ * to work, not merely exist.
+ */
+const LegalLinks = ({ onPrivacy }: { readonly onPrivacy: () => void }) => {
+  const theme = useTheme()
+
+  return (
+    <View style={[styles.legal, { gap: theme.spacing.lg }]}>
+      <Text
+        variant="caption"
+        tone="accent"
+        accessibilityRole="link"
+        onPress={() => void Linking.openURL(TERMS_URL)}
+      >
+        Terms of Use
+      </Text>
+      <Text variant="caption" tone="accent" accessibilityRole="link" onPress={onPrivacy}>
+        Privacy Policy
+      </Text>
+    </View>
   )
 }
 
@@ -169,6 +226,7 @@ const ManageSubscription = ({
 const MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions'
 
 const styles = StyleSheet.create({
+  legal: { flexDirection: 'row', justifyContent: 'center' },
   /** Fills the viewport even when the content is short, so the wash reaches the bottom. */
   page: { flexGrow: 1, padding: size.screenPadding },
 })

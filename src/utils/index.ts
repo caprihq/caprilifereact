@@ -1,5 +1,5 @@
 export { assertNever } from './assertNever'
-export { diag, diagFailure, diagUrl, logError, logWarn, tokenFp, wire } from './log/diag'
+export { diag, metric, diagFailure, diagUrl, logError, logWarn, tokenFp, wire } from './log/diag'
 export { redactSecrets, stringifySafely } from './log/redactSecrets'
 export { describeError, summarizeError, redact } from './log/errorDetail'
 export { friendlyMessage } from './userMessage'

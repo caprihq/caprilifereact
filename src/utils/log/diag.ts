@@ -119,6 +119,26 @@ export const logError = (label: string, detail?: unknown): void => {
   }
 }
 
+/**
+ * A measurement, logged in every build.
+ *
+ * Deliberately not `diag`, which is silenced outside development. A startup timing
+ * that only exists in a debug build measures the wrong thing entirely: debug loads
+ * its JavaScript from Metro over the network, so the number it reports has almost
+ * nothing to do with what a user experiences. The measurement has to survive into
+ * the build people actually run.
+ *
+ * Rare and small by construction — one line per launch — so it costs nothing to
+ * leave on, and it is the only way "make startup faster" ever gets a finish line.
+ */
+export const metric = (name: string, data: Record<string, unknown>): void => {
+  try {
+    console.log(`[CAPRI][metric] ${name} ${stringifySafely(data)}`)
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Log a URL with token values stripped. */
 export const diagUrl = (step: string, url: string): void => {
   diag(step, { url: redact(url) })

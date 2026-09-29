@@ -10,8 +10,13 @@ import { AuthProvider } from '@/features/auth'
 import { runBackendPreflight } from '@/features/auth/services/backendPreflight'
 import { pruneSignals } from '@/features/tasks/logic/signalsStore'
 import { RootNavigator } from '@/navigation'
-import { initCrashReporting } from '@/services'
-import { queryClient } from '@/services/api'
+import { initAnalytics, initCrashReporting } from '@/services'
+import {
+  hydrateQueryCache,
+  queryClient,
+  startCachePersistence,
+  startFocusBridge,
+} from '@/services/api'
 
 /**
  * Composition root.
@@ -25,8 +30,20 @@ import { queryClient } from '@/services/api'
  * a user who is already signed in.
  */
 export const App = () => {
+  /**
+   * Load the saved query cache before anything renders.
+   *
+   * In the render body rather than an effect on purpose: effects run *after* the
+   * first paint, so restoring there would show an empty Home for one frame and
+   * then fill it — the flash this exists to remove. MMKV is synchronous, so the
+   * data is simply there by the time children render, the same reason the theme
+   * is read during render. The function guards itself, so a re-render does no work.
+   */
+  hydrateQueryCache()
+
   useEffect(() => {
     void initCrashReporting()
+    void initAnalytics()
     // Interaction signals older than a day carry no weight in scoring, so drop
     // them once per launch — otherwise the store grows for the life of the
     // install. Reading the clock in an effect is fine; it is not render.
@@ -42,6 +59,17 @@ export const App = () => {
     // sign-in attempt muddies the picture.
     void runBackendPreflight()
   }, [])
+
+  /**
+   * Refetch stale data when the app comes back to the front.
+   *
+   * Separate from the effect above because it has a teardown, and because that one
+   * deliberately runs once for its side effects only.
+   */
+  useEffect(() => startFocusBridge(), [])
+
+  /** Mirror cache changes to disk, so the next launch starts where this one left off. */
+  useEffect(() => startCachePersistence(), [])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

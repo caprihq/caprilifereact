@@ -6,6 +6,7 @@ import { Card } from '@/components/Card'
 import { Text } from '@/components/Text'
 import { TextField } from '@/components/TextField'
 import { useTheme } from '@/hooks/useTheme'
+import { realName } from '../logic/displayName'
 import type { User } from '@/types/entities'
 
 /** Display name and email, with inline rename. */
@@ -20,7 +21,7 @@ export const ProfileIdentity = ({
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
 
-  const current = user?.display_name ?? user?.full_name ?? 'Your account'
+  const current = realName(user) ?? 'Your account'
 
   if (editing) {
     return (
@@ -49,7 +50,7 @@ export const ProfileIdentity = ({
   return (
     <Card
       onPress={() => {
-        setName(user?.display_name ?? user?.full_name ?? '')
+        setName(realName(user) ?? '')
         setEditing(true)
       }}
       accessibilityLabel="Edit display name"

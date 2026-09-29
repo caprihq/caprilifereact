@@ -24,7 +24,7 @@ import { size } from '@/theme'
  * one is what makes a hierarchy readable.
  */
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost'
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
 
 type ButtonProps = {
   readonly label: string
@@ -58,6 +58,14 @@ const fillFor = ({
   }
   if (variant === 'secondary') return colors.fill
   if (variant === 'outline') return pressed ? colors.fill : colors.surface
+  /**
+   * Destructive actions are outlined rather than filled.
+   *
+   * Dark mode's danger colour is a *soft* red, so white text on it measures around
+   * 2:1 — the same trap the old toast fell into. Ink and border carry the warning;
+   * the fill stays out of it.
+   */
+  if (variant === 'danger') return pressed ? colors.fill : 'transparent'
   return 'transparent'
 }
 
@@ -65,6 +73,7 @@ const fillFor = ({
 const inkFor = (colors: AppTheme['colors'], variant: ButtonVariant, themed: boolean): string => {
   if (variant === 'primary') return themed ? colors.textOnAccent : colors.textOnPrimary
   if (variant === 'ghost') return colors.accentInk
+  if (variant === 'danger') return colors.danger
   return colors.textPrimary
 }
 
@@ -96,8 +105,9 @@ export const Button = ({
           backgroundColor: fillFor({ colors: theme.colors, variant, themed, pressed }),
           borderRadius: theme.radius.lg,
           paddingHorizontal: theme.spacing.xl,
-          borderWidth: variant === 'outline' ? StyleSheet.hairlineWidth : 0,
-          borderColor: theme.colors.border,
+          borderWidth:
+            variant === 'outline' || variant === 'danger' ? StyleSheet.hairlineWidth : 0,
+          borderColor: variant === 'danger' ? theme.colors.danger : theme.colors.border,
           opacity: isInactive ? 0.45 : 1,
         },
         // Depth on the focal action only, and never while it is disabled — a
