@@ -43,8 +43,6 @@ export const ConfirmDialog = ({
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onCancel}>
-      {/* Tapping outside cancels, which is what every dialog on both platforms does
-          and what a user reaching for "no" tries first. */}
       {/* The backdrop is the layout: the card centres inside it, and a tap on the
           dimmed area cancels — what a user reaching for "no" tries first. */}
       <Pressable style={styles.backdrop} onPress={onCancel} accessibilityLabel="Cancel">
@@ -80,7 +78,12 @@ export const ConfirmDialog = ({
             </Text>
           ) : null}
 
-          <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
+          {/*
+            Full width, explicitly. The card centres its children, which left this
+            column sized to its own content while each Button inside asked for
+            `width: 100%` of it — so the labels sat off the card's centre line.
+          */}
+          <View style={[styles.actions, { gap: theme.spacing.sm, marginTop: theme.spacing.sm }]}>
             <Button label={confirmLabel} onPress={onConfirm} />
             <Button label="Not yet" variant="ghost" onPress={onCancel} />
           </View>
@@ -96,4 +99,5 @@ const styles = StyleSheet.create({
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: size.screenPadding },
   card: { width: '100%', maxWidth: 340, alignItems: 'center' },
   glyph: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
+  actions: { width: '100%' },
 })

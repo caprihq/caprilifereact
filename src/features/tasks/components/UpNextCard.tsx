@@ -65,7 +65,8 @@ export const UpNextCard = ({
             <Text variant="bodyStrong" numberOfLines={1}>
               {task.title}
             </Text>
-            <Text variant="caption" tone="muted" numberOfLines={2}>
+            {/* One line: see the note in TaskCard's DetailLine. */}
+            <Text variant="caption" tone="muted" numberOfLines={1}>
               {reason}
             </Text>
           </SwipeableTaskRow>

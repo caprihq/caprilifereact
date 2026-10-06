@@ -55,9 +55,21 @@ export const AppStack = () => {
       <Stack.Screen
         name="AutoSchedule"
         component={AutoScheduleScreen}
-        // A fitted sheet like the others, not a full-screen modal: one card of
-        // suggestions was filling the whole screen with the rest left empty.
-        options={{ ...sheetOptions, headerShown: false }}
+        /*
+          Draggable between medium and large rather than fitted to its contents.
+          `fitToContents` suited one suggestion and broke at ten: the sheet caps at
+          the screen height, the scroll view inside it is unbounded, and everything
+          past the first screenful became unreachable. Opening at medium keeps a
+          short list from floating in an empty sheet.
+        */
+        options={{
+          ...sheetOptions,
+          headerShown: false,
+          // Half height and full, as fractions: react-navigation's typing accepts
+          // these rather than the 'all' keyword react-native-screens documents.
+          sheetAllowedDetents: [0.5, 1],
+          sheetExpandsWhenScrolledToEdge: true,
+        }}
       />
       {/* Draws `SheetHeader` itself: Plan is reached from inside sheets as well as
           from Profile, and a modal presentation gets no back control from the

@@ -105,7 +105,7 @@ android {
         // already live — iOS holds 2.117896.7 (build 16). If Play ever carries a
         // build, check its live versionCode first: it must be higher there too,
         // and Play's counter is independent of this one.
-        versionCode 26
+        versionCode 27
         versionName "3.0.0"
     }
     signingConfigs {

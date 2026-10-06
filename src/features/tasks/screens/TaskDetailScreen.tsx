@@ -6,6 +6,7 @@ import type { RouteProp } from '@react-navigation/native'
 import { ErrorView } from '@/components/ErrorView'
 import { SheetHeader } from '@/components/SheetHeader'
 import { SheetNotice } from '@/components/Toast'
+import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
 import type { AppStackParamList } from '@/navigation/types'
 import { useTaskFeed } from '../hooks/useTaskFeed'
@@ -21,6 +22,7 @@ import { TaskDetailBody } from '../components/TaskDetailBody'
  * so the editor hooks never sit behind the not-found return.
  */
 export const TaskDetailScreen = () => {
+  const theme = useTheme()
   const wash = useWash()
   const navigation = useNavigation()
   const route = useRoute<RouteProp<AppStackParamList, 'TaskDetail'>>()
@@ -41,7 +43,10 @@ export const TaskDetailScreen = () => {
 
   return (
     <ScrollView
-      contentContainerStyle={[wash, styles.page]}
+      // The close button and whatever follows it were touching: the page had padding
+      // but nothing between its children, which only showed once the reasoning note
+      // was added directly beneath the header.
+      contentContainerStyle={[wash, styles.page, { gap: theme.spacing.lg }]}
       keyboardShouldPersistTaps="handled"
     >
       <SheetHeader title="Task" onClose={() => navigation.goBack()} />

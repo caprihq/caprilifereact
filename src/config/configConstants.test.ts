@@ -11,7 +11,7 @@ import {
 } from '../../modules/capri-app-group/constants'
 import { KEYCHAIN_ACCESS_GROUP, SECRET_KEYS, keychainServiceFor } from '@/services/storage'
 import { base44Config } from '@/config'
-import { TASK_LINK_PATH } from '../../modules/capri-deep-link/constants'
+import { HOME_LINK_PATH, TASK_LINK_PATH } from '../../modules/capri-deep-link/constants'
 import { palette } from '@/theme/tokens'
 
 /**
@@ -407,6 +407,23 @@ describe('a task has one URL, and every surface uses it', () => {
     // A widget extension cannot import the app's constants, so this is the guard
     // that keeps its hardcoded copy honest.
     expect(widgetSwift()).toContain(taskURL)
+  })
+
+  it('a tap on the widget itself goes to Home, by a real path', () => {
+    // The bare scheme matches no route, and an unmatched link leaves the app on
+    // whatever it last showed — the widget looked like it reopened Profile. The
+    // Swift copy is hardcoded, so this is what keeps it pointing at Home.
+    const homeURL = `${base44Config.authCallbackScheme}://${HOME_LINK_PATH}`
+    expect(widgetSwift()).toContain(`"${homeURL}"`)
+    expect(widgetSwift()).toContain('.widgetURL(CapriShared.homeURL)')
+    expect(widgetSwift()).not.toContain('.widgetURL(CapriShared.taskURL')
+  })
+
+  it('the route table resolves Home through the tab navigator', () => {
+    // Home is a tab. A path mapped at the stack level would match and then fail
+    // to select the tab, which reads the same as not matching at all.
+    expect(linkingConfig()).toContain('HOME_LINK_PATH')
+    expect(linkingConfig()).toMatch(/Tabs:\s*\{\s*screens:\s*\{\s*Home:\s*HOME_LINK_PATH/)
   })
 
   it('the widget makes each queued task its own tap target', () => {

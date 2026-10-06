@@ -21,6 +21,7 @@ import {
   COMPLETION_MESSAGE,
   completionTitle,
 } from '../logic/completionPrompt'
+import { ReasonNote } from './ReasonNote'
 import { SubtasksSection } from './SubtasksSection'
 import { TaskDetailActions } from './TaskDetailActions'
 import { TaskFieldsForm } from './TaskFieldsForm'
@@ -97,6 +98,9 @@ export const TaskDetailBody = ({ task, userEmail }: TaskDetailBodyProps) => {
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
+      {/* Above the fields: why this task is where it is, before how to change it. */}
+      <ReasonNote reason={task.priority_reason ?? undefined} />
+
       <TaskFieldsForm
         draft={editing}
         onChange={setDraft}

@@ -1,8 +1,10 @@
 import { AppState, Linking } from 'react-native'
+import { getStateFromPath } from '@react-navigation/native'
 import type { LinkingOptions } from '@react-navigation/native'
 
 import { base44Config } from '@/config'
-import { TASK_LINK_PATH } from '../../modules/capri-deep-link/constants'
+import { diagUrl } from '@/utils'
+import { HOME_LINK_PATH, TASK_LINK_PATH, normalizeLinkPath } from '../../modules/capri-deep-link/constants'
 import { takePendingLink } from '../../modules/capri-deep-link'
 import type { RootStackParamList } from './types'
 
@@ -44,6 +46,13 @@ export const linking: LinkingOptions<RootStackParamList> = {
          */
         initialRouteName: 'Tabs',
         screens: {
+          // Nested one level further than it looks: Home is a tab, so the path has
+          // to resolve through the tab navigator or it never selects the tab.
+          Tabs: {
+            screens: {
+              Home: HOME_LINK_PATH,
+            },
+          },
           TaskDetail: `${TASK_LINK_PATH}/:taskId`,
         },
       },
@@ -54,8 +63,18 @@ export const linking: LinkingOptions<RootStackParamList> = {
    * A cold launch has two possible sources: a real URL open, and a notification tap
    * that the app delegate parked because React was not running yet.
    */
+  /** See `normalizeLinkPath`: an empty path means Home, not "stay put". */
+  getStateFromPath(path, options) {
+    return getStateFromPath(normalizeLinkPath(path), options)
+  },
+
   async getInitialURL() {
-    return (await Linking.getInitialURL()) ?? (await takePendingLink())
+    const url = (await Linking.getInitialURL()) ?? (await takePendingLink())
+    // Printed in release too. "The widget opened the wrong screen" has two very
+    // different causes — the wrong URL arrived, or the right one was routed
+    // wrongly — and only the console can say which.
+    if (url) diagUrl('link.cold', url)
+    return url
   },
 
   /**
@@ -67,12 +86,16 @@ export const linking: LinkingOptions<RootStackParamList> = {
    */
   subscribe(listener) {
     const urlSubscription = Linking.addEventListener('url', ({ url }) => {
+      diagUrl('link.warm', url)
       listener(url)
     })
 
     const drain = () => {
       void takePendingLink().then((url) => {
-        if (url) listener(url)
+        if (url) {
+          diagUrl('link.parked', url)
+          listener(url)
+        }
       })
     }
 

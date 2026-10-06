@@ -1,7 +1,7 @@
 import InAppBrowser from 'react-native-inappbrowser-reborn'
 
 import { base44 } from '@/services/api'
-import { friendlyMessage, logWarn } from '@/utils'
+import { diagFailure, friendlyMessage, logWarn } from '@/utils'
 
 /**
  * Linking the user's Google Calendar.
@@ -34,6 +34,7 @@ export const checkCalendarConnection = async (): Promise<ConnectionState> => {
     const { events, connected } = response.data ?? {}
     return events !== null && connected !== false ? 'connected' : 'disconnected'
   } catch (error) {
+    diagFailure('calendar.check', error)
     logWarn('[calendar] connection check failed', error)
     return 'disconnected'
   }
@@ -42,6 +43,20 @@ export const checkCalendarConnection = async (): Promise<ConnectionState> => {
 export type ConnectOutcome =
   | { readonly kind: 'finished'; readonly state: ConnectionState }
   | { readonly kind: 'failed'; readonly message: string }
+
+/**
+ * Said when the browser closes with nothing linked.
+ *
+ * Previously this path was silent: the sheet shut, the row stayed "Not connected",
+ * and nothing explained why. The commonest reason is not a fault in CAPRI at all —
+ * Google interrupts the flow with "Google hasn't verified this app" whenever the
+ * OAuth consent screen is still in testing, and the safe-looking button on that
+ * screen is the one that abandons the connection. Naming it is the difference
+ * between a user retrying successfully and concluding the feature is broken.
+ */
+export const NOT_LINKED_MESSAGE =
+  "Calendar wasn't connected. If Google warned that the app isn't verified, choose Advanced then Continue to finish linking."
+
 
 export const connectCalendar = async (): Promise<ConnectOutcome> => {
   try {
@@ -60,8 +75,16 @@ export const connectCalendar = async (): Promise<ConnectOutcome> => {
     // Resolves once the user dismisses the browser, however it ended.
     await InAppBrowser.open(url)
 
-    return { kind: 'finished', state: await checkCalendarConnection() }
+    const state = await checkCalendarConnection()
+    if (state === 'disconnected') {
+      return { kind: 'failed', message: NOT_LINKED_MESSAGE }
+    }
+
+    return { kind: 'finished', state }
   } catch (error) {
+    // Printed in release too, so a tester's console says whether the connector
+    // refused to start the flow or the callback never completed.
+    diagFailure('calendar.connect', error, { connector: GOOGLE_CALENDAR_CONNECTOR_ID })
     logWarn('[calendar] connect failed', error)
     return {
       kind: 'failed',

@@ -211,14 +211,19 @@ const DetailLine = ({
 
   if (!detail.isReason) {
     return (
-      <Text variant="caption" tone="muted" numberOfLines={2}>
+      <Text variant="caption" tone="muted" numberOfLines={1}>
         {detail.text}
       </Text>
     )
   }
 
+  /*
+    One line, not two. Four cards each carrying a two-line sentence is what made
+    Home read as busy, and a reason clipped mid-thought explains nothing anyway.
+    The unabridged version is on the task itself — see `ReasonNote`.
+  */
   return (
-    <Text variant="caption" tone="accent" numberOfLines={2}>
+    <Text variant="caption" tone="accent" numberOfLines={1}>
       <Ionicons name="bulb-outline" size={13} color={theme.colors.accentInk} /> {detail.text}
     </Text>
   )

@@ -65,6 +65,16 @@ private enum CapriShared {
     static func taskURL(_ id: String) -> URL? {
         URL(string: "capri://task/\(id)")
     }
+
+    /// Where a tap on the widget *itself* goes.
+    ///
+    /// `HOME_LINK_PATH` in modules/capri-deep-link/constants.ts. It must be a real
+    /// path: the bare scheme matches no route, and an unmatched link leaves the app
+    /// on whatever screen it was last showing — so the widget appeared to reopen
+    /// Profile. Tapping the widget used to open the hero task's detail sheet instead,
+    /// which is a surprising answer to "show me my day"; the rows below are where a
+    /// specific task is asked for explicitly.
+    static let homeURL = URL(string: "capri://home")
 }
 
 // MARK: - What the views draw (mirrors logic/widgetSnapshot.ts)
@@ -260,7 +270,21 @@ struct CapriProvider: TimelineProvider {
     private func fetchEntry() async -> CapriEntry {
         let stored = published()
 
-        if let stored, stored.isFresh {
+        /*
+         * What the app published wins, stale or not.
+         *
+         * This used to fall through to the server once the snapshot passed
+         * `snapshotMaxAgeHours`, and the two do not rank the same way: the app
+         * publishes exactly what Home is showing (CAPRI's recommendation), while
+         * `dailyPrioritiesWidget` sorts on `priority_score` alone. So after six hours
+         * without opening the app — an ordinary night — the widget started naming a
+         * different task than Home, with nothing wrong on either side.
+         *
+         * One source of truth instead. The silent push added for background refresh
+         * is what keeps this current without the app being opened; the fetch below is
+         * now only for a widget that has never been handed a snapshot at all.
+         */
+        if let stored, stored.isUsable {
             return CapriEntry(date: Date(), state: .loaded(stored))
         }
 
@@ -377,11 +401,11 @@ struct CapriWidgetEntryView: View {
                         // the queue — which loses the one thing the widget is for.
                         // Rows are not individually tappable at this size (a `Link`
                         // target that small is a mis-tap), so the whole surface opens
-                        // the hero.
+                        // the app on Home.
                         SmallView(hero: hero,
                                   upNext: Array(snapshot.upNext.prefix(1)),
                                   more: snapshot.remaining(showing: 1))
-                            .widgetURL(CapriShared.taskURL(hero.id))
+                            .widgetURL(CapriShared.homeURL)
                     }
                 } else {
                     MessageView(icon: "checkmark.circle.fill", text: "All clear for today 🎉")
@@ -501,8 +525,9 @@ struct MediumView: View {
             }
         }
         .padding(2)
-        // Anything outside a `Link` — the hero half — opens the hero.
-        .widgetURL(CapriShared.taskURL(hero.id))
+        // Each row has its own `Link` to its own task. Anything outside one is an
+        // ambiguous tap, so it opens Home rather than guessing at the hero.
+        .widgetURL(CapriShared.homeURL)
     }
 }
 

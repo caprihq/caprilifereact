@@ -76,8 +76,12 @@ export const AutoScheduleScreen = () => {
   if (running) return <LoadingView message="Finding time for your work…" />
 
   return (
+    /*
+      No `fit` here. It exists for a `fitToContents` sheet, and it leaves the scroll
+      view unbounded — with ten suggestions the list simply ran off the bottom with
+      nothing to scroll. This sheet has real detents now, so the scroll view fills it.
+    */
     <KeyboardAwareScroll
-      fit
       align="top"
       contentStyle={[wash, styles.page, { gap: theme.spacing.md }]}
     >

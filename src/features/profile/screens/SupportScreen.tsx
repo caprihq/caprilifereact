@@ -11,6 +11,7 @@ import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
 import { base44 } from '@/services/api'
 import { reportError } from '@/services'
+import { diagFailure } from '@/utils'
 import { useCurrentUser } from '@/services/api'
 
 /** Contact support — posts to the sendSupportEmail backend function. */
@@ -36,6 +37,20 @@ export const SupportScreen = () => {
       show({ message: 'Message sent — we will get back to you.' })
       navigation.goBack()
     } catch (error) {
+      /*
+        Print why, not just that.
+        
+        The toast says "Couldn't send that" because that is all a user can act on,
+        but the same wording covers "the phone has no signal" and "the server
+        refused the recipient address", which need completely different fixes. The
+        backend returns its own reason in `error.message`; this puts the status and
+        that reason in the device log, where `diagFailure` prints in release builds
+        too — so a tester's console is enough to tell the two apart.
+      */
+      diagFailure('support.send', error, {
+        hasUser: Boolean(user?.email),
+        length: message.trim().length,
+      })
       reportError(error, 'sendSupportEmail')
       show({ message: "Couldn't send that. Please try again.", tone: 'error' })
     } finally {

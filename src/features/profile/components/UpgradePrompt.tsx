@@ -63,7 +63,14 @@ export const UpgradePrompt = ({ feature, upgrade, close }: UpgradePromptProps) =
               {copy.description}
             </Text>
 
-            <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
+            {/*
+              Full width, explicitly. The card centres its children, so this column
+              was sized to its own content and each Button's `width: 100%` resolved
+              against nothing — leaving both buttons at their natural widths, aligned
+              left. "See Executive" is the wider of the two, so "Not now" sat off the
+              card's centre line. Same fault, same fix, as ConfirmDialog.
+            */}
+            <View style={[styles.actions, { gap: theme.spacing.sm, marginTop: theme.spacing.sm }]}>
               <Button label="See Executive" icon="sparkles" onPress={upgrade} />
               <Button label="Not now" variant="ghost" onPress={close} />
             </View>
@@ -79,4 +86,5 @@ const styles = StyleSheet.create({
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: size.screenPadding },
   card: { width: '100%', maxWidth: 340, alignItems: 'center' },
   glyph: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  actions: { width: '100%' },
 })
