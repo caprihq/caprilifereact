@@ -27,7 +27,7 @@
                         <constraints>
                             <constraint firstItem="LGO-01-img" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="LGO-cx-001"/>
                             <constraint firstItem="LGO-01-img" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="LGO-cy-001"/>
-                            <constraint firstAttribute="width" constant="200" id="LGO-wd-001"/>
+                            <constraint firstItem="LGO-01-img" firstAttribute="width" constant="200" id="LGO-wd-001"/>
                             <!-- 663x157 is the artwork's own ratio; pinning it stops the mark
                                  stretching on any screen size. -->
                             <constraint firstItem="LGO-01-img" firstAttribute="height" secondItem="LGO-01-img" secondAttribute="width" multiplier="157:663" id="LGO-ar-001"/>

@@ -65,6 +65,7 @@ export const NativeHomeScreen = () => {
     // Everything CAPRI may rank, not just the four on screen: the widget says
     // "+N more" from this.
     totalOpen: feed.actionable.length,
+    allTasks: feed.allTasks,
     nowMs: feed.nowMs,
     ready: !feed.isLoading && !feed.isError,
   })
