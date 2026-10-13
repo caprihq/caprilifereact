@@ -23,16 +23,28 @@ export type ConnectionState = 'connected' | 'disconnected'
 /**
  * Ask the backend whether a calendar is reachable.
  *
- * `getUserCalendarEvents` answers `{ events: null, connected: false }` when
- * there is no connection, so a missing link is a successful response.
+ * Connected means one thing: the backend came back with a list of events. It
+ * answers `{ events: null, connected: false }` when nothing is linked, `{ events }`
+ * when it is, and `{ error }` when Google refuses the token — a box left unticked
+ * on the consent screen, an expired grant.
+ *
+ * This used to call anything that was not explicitly "not connected" connected, so
+ * an error reply counted as success. That was tolerable while the check ran once,
+ * after the user closed the browser. It is not now that a poll closes the sign-in
+ * sheet on a "connected": a refused token would shut the sheet and report a link
+ * that does not work.
  */
+export const isConnectedReply = (data: unknown): boolean =>
+  typeof data === 'object' &&
+  data !== null &&
+  Array.isArray((data as { events?: unknown }).events)
+
 export const checkCalendarConnection = async (): Promise<ConnectionState> => {
   try {
     const response = (await base44.functions.invoke('getUserCalendarEvents', {})) as {
-      data?: { events?: unknown; connected?: boolean }
+      data?: unknown
     }
-    const { events, connected } = response.data ?? {}
-    return events !== null && connected !== false ? 'connected' : 'disconnected'
+    return isConnectedReply(response.data) ? 'connected' : 'disconnected'
   } catch (error) {
     diagFailure('calendar.check', error)
     logWarn('[calendar] connection check failed', error)
@@ -58,6 +70,74 @@ export const NOT_LINKED_MESSAGE =
   "Calendar wasn't connected. If Google warned that the app isn't verified, choose Advanced then Continue to finish linking."
 
 
+/** How often to ask whether the link exists while the sign-in sheet is open. */
+export const WATCH_INTERVAL_MS = 2500
+/** Stop asking after this long; the user can still close the sheet themselves. */
+export const WATCH_LIMIT_MS = 5 * 60_000
+
+/**
+ * Close the sign-in sheet as soon as the calendar becomes linked.
+ *
+ * Base44's connector flow was written for the web app, where it runs in a popup and
+ * the final callback page closes that popup. In the phone's in-app browser there is
+ * no popup to close, so after Google's "Continue" the finished page simply sat there
+ * looking like it was still loading — the connection had succeeded, but nothing told
+ * the user, and nothing ran until they dismissed the sheet by hand.
+ *
+ * Polling the backend is the one signal that does not depend on what that page does.
+ * Three rules keep it from closing the sheet at the wrong moment:
+ *
+ * - **It needs to see the change.** Only "not linked, then linked" closes the sheet.
+ *   Someone reconnecting an account that is already linked would otherwise have the
+ *   sheet shut on the first check, before they could sign in at all; for them this
+ *   simply stands down and they close it themselves.
+ * - **The first check runs immediately**, as the sheet opens, so that baseline is
+ *   taken before anyone could possibly have finished signing in.
+ * - **Checks never overlap**, and one that lands after the sheet has closed does
+ *   nothing.
+ *
+ * Returns a stop function.
+ */
+export const closeWhenConnected = (): (() => void) => {
+  let stopped = false
+  let checking = false
+  let sawUnlinked = false
+  const startedAt = Date.now()
+
+  const stop = (): void => {
+    stopped = true
+    clearInterval(timer)
+  }
+
+  const check = (): void => {
+    if (stopped || checking) return
+    if (Date.now() - startedAt > WATCH_LIMIT_MS) {
+      stop()
+      return
+    }
+    checking = true
+    void checkCalendarConnection()
+      .then((state) => {
+        if (stopped) return
+        if (state === 'disconnected') {
+          sawUnlinked = true
+          return
+        }
+        // Linked from the very first look: nothing to detect, so stand down.
+        stop()
+        if (sawUnlinked) InAppBrowser.close()
+      })
+      .finally(() => {
+        checking = false
+      })
+  }
+
+  const timer = setInterval(check, WATCH_INTERVAL_MS)
+  check()
+
+  return stop
+}
+
 export const connectCalendar = async (): Promise<ConnectOutcome> => {
   try {
     const url: unknown = await base44.connectors.connectAppUser(GOOGLE_CALENDAR_CONNECTOR_ID)
@@ -72,8 +152,14 @@ export const connectCalendar = async (): Promise<ConnectOutcome> => {
       }
     }
 
-    // Resolves once the user dismisses the browser, however it ended.
-    await InAppBrowser.open(url)
+    // Resolves once the browser is dismissed — by the user, or by the watcher below
+    // the moment the connection exists.
+    const stopWatching = closeWhenConnected()
+    try {
+      await InAppBrowser.open(url)
+    } finally {
+      stopWatching()
+    }
 
     const state = await checkCalendarConnection()
     if (state === 'disconnected') {

@@ -55,6 +55,8 @@ jest.mock('react-native-inappbrowser-reborn', () => ({
   default: {
     isAvailable: jest.fn(() => Promise.resolve(true)),
     openAuth: jest.fn(() => Promise.resolve({ type: 'cancel' })),
+    open: jest.fn(() => Promise.resolve({ type: 'cancel' })),
+    close: jest.fn(),
   },
 }))
 
