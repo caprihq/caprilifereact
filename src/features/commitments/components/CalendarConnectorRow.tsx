@@ -4,7 +4,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons'
 
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
-import type { ConnectionState } from '../services/calendarConnection'
+import { needsReconnect, statusLabel } from '../logic/calendarStatus'
+import type { ConnectionState } from '../logic/calendarStatus'
 
 /**
  * One calendar provider row: name, connection state, and the action.
@@ -21,12 +22,19 @@ type CalendarConnectorRowProps = {
   readonly working: boolean
   readonly onConnect: () => void
   readonly onDisconnect: () => void
+  readonly onReconnect: () => void
   readonly onUpgrade: () => void
 }
 
-const statusLabel = (status: ConnectionState | 'checking'): string => {
-  if (status === 'checking') return 'Checking…'
-  return status === 'connected' ? 'Connected' : 'Not connected'
+const statusTone = (unlocked: boolean, status: ConnectionState | 'checking') => {
+  if (!unlocked) return 'muted' as const
+  if (status === 'connected') return 'accent' as const
+  return needsReconnect(status) ? ('danger' as const) : ('muted' as const)
+}
+
+const actionLabel = (status: ConnectionState | 'checking'): string => {
+  if (status === 'connected') return 'Disconnect'
+  return needsReconnect(status) ? 'Reconnect' : 'Connect'
 }
 
 export const CalendarConnectorRow = ({
@@ -37,6 +45,7 @@ export const CalendarConnectorRow = ({
   working,
   onConnect,
   onDisconnect,
+  onReconnect,
   onUpgrade,
 }: CalendarConnectorRowProps) => {
   const theme = useTheme()
@@ -54,7 +63,7 @@ export const CalendarConnectorRow = ({
 
       <View style={styles.body}>
         <Text variant="body">{label}</Text>
-        <Text variant="caption" tone={unlocked && connected ? 'accent' : 'muted'}>
+        <Text variant="caption" tone={statusTone(unlocked, status)}>
           {unlocked ? statusLabel(status) : 'Upgrade to connect your calendar'}
         </Text>
       </View>
@@ -67,9 +76,9 @@ export const CalendarConnectorRow = ({
         <Text
           variant="label"
           tone={connected ? 'danger' : 'accent'}
-          onPress={connected ? onDisconnect : onConnect}
+          onPress={connected ? onDisconnect : needsReconnect(status) ? onReconnect : onConnect}
         >
-          {connected ? 'Disconnect' : 'Connect'}
+          {actionLabel(status)}
         </Text>
       )}
     </Pressable>

@@ -48,6 +48,7 @@ export const CalendarIntegrationsSection = ({ onUpgrade }: CalendarIntegrationsS
           working={calendar.working}
           onConnect={() => void calendar.connect()}
           onDisconnect={() => void calendar.disconnect()}
+          onReconnect={() => void calendar.reconnect()}
           onUpgrade={onUpgrade}
         />
 

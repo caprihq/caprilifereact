@@ -6,6 +6,7 @@ import {
   checkCalendarConnection,
   connectCalendar,
   disconnectCalendar,
+  reconnectCalendar,
 } from '../services/calendarConnection'
 import type { ConnectionState } from '../services/calendarConnection'
 
@@ -23,6 +24,7 @@ export type CalendarConnection = {
   readonly working: boolean
   readonly connect: () => Promise<void>
   readonly disconnect: () => Promise<void>
+  readonly reconnect: () => Promise<void>
   readonly recheck: () => Promise<void>
 }
 
@@ -62,6 +64,7 @@ export const useCalendarConnection = (
       try {
         const outcome = await action()
         if (outcome.kind === 'failed') {
+          if (outcome.state) setStatus(outcome.state)
           onError?.(outcome.message)
           return
         }
@@ -79,6 +82,7 @@ export const useCalendarConnection = (
     working,
     connect: useCallback(() => run(connectCalendar), [run]),
     disconnect: useCallback(() => run(disconnectCalendar), [run]),
+    reconnect: useCallback(() => run(reconnectCalendar), [run]),
     recheck,
   }
 }
