@@ -33,11 +33,11 @@ const SECTIONS = [
   },
   {
     heading: 'AI features',
-    body: 'When you use AI prioritisation, voice capture or subtasks, the task text is sent to our AI provider to generate a recommendation, along with your working hours and how full your day already is so the answer fits your schedule. It is not used to train models.',
+    body: 'When you use AI prioritisation, recommendations, voice capture or subtasks, the task text is sent to our AI provider to generate a recommendation, along with your working hours and, if you have connected Google Calendar, the titles and times of today\'s events, so the answer fits your schedule. Our AI providers do not use it to train their models.',
   },
   {
     heading: 'Calendar',
-    body: 'If you connect Google Calendar, CAPRI reads when you are busy over the coming week — times only, never event titles — so it can plan around your commitments. It writes to your calendar only for time blocks you accept from Smart Auto-Schedule, and never touches anything else.',
+    body: 'If you connect Google Calendar, CAPRI reads your events, including their titles and times, to show your day alongside your tasks and plan around your commitments. It writes to your calendar only for time blocks you accept from Smart Auto-Schedule, and never changes anything else. CAPRI\'s use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements, and it is never used to train generalized AI models.',
   },
   {
     heading: 'Deleting your data',
