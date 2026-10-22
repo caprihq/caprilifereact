@@ -3,6 +3,11 @@ import { subtasksFromTitles } from '@/features/tasks/logic/subtasks'
 import type { Subtask, Task } from '@/types/entities'
 import { logAIUsage } from './aiUsageLog'
 import { logWarn } from '@/utils'
+import { DAILY_LIMIT_MESSAGE, isDailyLimit } from '../logic/upgradeError'
+
+/** "Resets tomorrow" when the day's allowance is spent; "try again" for anything else. */
+const failureMessage = (error: unknown): string =>
+  isDailyLimit(error) ? DAILY_LIMIT_MESSAGE : "Couldn't generate steps. Please try again."
 
 /**
  * "Break this into steps" — the LLM subtask breakdown.
@@ -83,6 +88,6 @@ export const generateSubtasks = async (
     const message = error instanceof Error ? error.message : 'Unknown error'
     void logged(false, message)
     logWarn('[aiSubtasks] generation failed', error)
-    return { kind: 'error', message: "Couldn't generate steps. Please try again." }
+    return { kind: 'error', message: failureMessage(error) }
   }
 }

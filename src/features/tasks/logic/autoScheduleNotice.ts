@@ -39,6 +39,12 @@ export const emptyPlanNotice = (plan: EmptyPlan): PlanNotice => {
     return { message: 'Nothing left to schedule — your list is clear.', tone: 'success' }
   }
 
+  // Open work exists, but every task already has a time ahead. Saying "your list is
+  // clear" would be false; the plan is simply already made.
+  if (plan.reason === 'all_planned') {
+    return { message: 'Everything open already has a time. Nothing new to place.', tone: 'success' }
+  }
+
   if (plan.reason === 'no_free_slots') {
     return {
       message:
@@ -51,3 +57,30 @@ export const emptyPlanNotice = (plan: EmptyPlan): PlanNotice => {
   // An older backend, or one that answered in a way this build does not know.
   return { message: 'CAPRI found no time to schedule into this week.', tone: 'info' }
 }
+
+/**
+ * Which planner produced the suggestions → a caption, or nothing.
+ *
+ * Silent when the AI planned, because that is the normal case. When CAPRI fell back
+ * to its rules the times are still real and still checked against the calendar —
+ * but the reasons are plainer and nothing was inferred from the titles, and a user
+ * comparing today's plan with yesterday's deserves to know why it reads differently.
+ *
+ * `not_configured` stays silent too: it means the backend has no model key, which is
+ * an operator's problem, not something the user can act on or should be told about.
+ */
+export const plannerCaption = (aiStatus: string | undefined): string | null => {
+  if (aiStatus === 'daily_limit') {
+    return "You've used today's AI plans, so these times come from CAPRI's standard rules."
+  }
+  if (aiStatus === 'unavailable') {
+    return "CAPRI's AI couldn't be reached, so these times come from its standard rules."
+  }
+  return null
+}
+
+/** "3 more after these" — so a long list is not mistaken for a full week. */
+export const moreToPlanCaption = (count: number | undefined): string | null =>
+  typeof count === 'number' && count > 0
+    ? `${String(count)} more ${count === 1 ? 'task' : 'tasks'} to plan. Accept these, then run it again.`
+    : null

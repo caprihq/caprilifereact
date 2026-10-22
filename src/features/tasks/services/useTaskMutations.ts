@@ -5,6 +5,7 @@ import { windowForSlot } from '@/features/tasks/logic/timeSlots'
 import type { SlotKey } from '@/features/tasks/logic/timeSlots'
 import type { FeedbackTone } from '@/store'
 import type { Task, TaskStatus } from '@/types/entities'
+import { syncAfter } from './calendarSync'
 import { useTaskCrud } from './useTaskCrud'
 import type { TaskUpdate } from './useTaskCrud'
 
@@ -26,6 +27,11 @@ export type MutationFeedback = {
 type Options = {
   readonly userEmail: string | null
   readonly onFeedback?: (feedback: MutationFeedback) => void
+  /**
+   * Copy a task put into a block to Google Calendar once it is saved. Only for users
+   * whose plan includes calendar sync; for anyone else it would be a wasted request.
+   */
+  readonly syncCalendar?: boolean
 }
 
 /**
@@ -45,7 +51,7 @@ const restoredSchedule = (task: Task): TaskUpdate => ({
   scheduled_end_time: task.scheduled_end_time ?? null,
 })
 
-export const useTaskMutations = ({ userEmail, onFeedback }: Options) => {
+export const useTaskMutations = ({ userEmail, onFeedback, syncCalendar = false }: Options) => {
   const reportFailure = useCallback(
     (message: string) => onFeedback?.({ message, tone: 'error' }),
     [onFeedback],
@@ -96,10 +102,11 @@ export const useTaskMutations = ({ userEmail, onFeedback }: Options) => {
    */
   const scheduleInSlot = useCallback(
     (task: Task, slot: SlotKey, when: { readonly nowMs: number; readonly timeZone: string }) => {
-      updateTask.mutate({
-        id: task.id,
-        data: windowForSlot(task, slot, when),
-      })
+      const change = { id: task.id, data: windowForSlot(task, slot, when) }
+      // The same promise the review screen chains on, so a block added by hand
+      // reaches the calendar exactly as an accepted suggestion does.
+      if (syncCalendar) syncAfter(updateTask.mutateAsync(change))
+      else updateTask.mutate(change)
       onFeedback?.({
         message: 'Added to your day.',
         tone: 'success',
@@ -108,7 +115,7 @@ export const useTaskMutations = ({ userEmail, onFeedback }: Options) => {
         },
       })
     },
-    [updateTask, onFeedback],
+    [updateTask, onFeedback, syncCalendar],
   )
 
   /**

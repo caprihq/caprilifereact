@@ -5,7 +5,7 @@ import { SectionLabel } from '@/components/SectionLabel/SectionLabel'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import type { Task } from '@/types/entities'
-import { unplacedHeading, unplacedReason } from '../logic/unplacedReason'
+import { unplacedHeading, unplacedLine } from '../logic/unplacedReason'
 import type { Unplaced } from '../logic/unplacedReason'
 
 /**
@@ -51,7 +51,7 @@ export const UnplacedList = ({ unplaced, tasks }: UnplacedListProps) => {
                   {task?.title ?? 'A task'}
                 </Text>
                 <Text variant="caption" tone="muted">
-                  {unplacedReason(entry.reason)}
+                  {unplacedLine(entry)}
                 </Text>
               </View>
             )

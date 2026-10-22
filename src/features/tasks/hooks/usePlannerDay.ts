@@ -1,9 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 
+import { useTodayTimeline } from '@/features/commitments'
 import { useFeedback } from '@/hooks/useFeedback'
+import { usePlan } from '@/hooks/usePlan'
 import { filterDailyPlannerTasks } from '../logic/plannerLogic'
-import { TIME_SLOTS, schedulableTasks, slotKeyFor } from '../logic/timeSlots'
+import { schedulableTasks } from '../logic/timeSlots'
 import type { SlotKey } from '../logic/timeSlots'
+import { buildUnifiedDay } from '../logic/unifiedDay'
 import { useTaskMutations } from '../services/useTaskMutations'
 import type { TaskFeed } from './useTaskFeed'
 import {
@@ -15,8 +18,9 @@ import {
 import type { Task } from '@/types/entities'
 
 /**
- * The planner's day: what sits in each block, what still needs a time, and what
- * carried over — plus the actions that move tasks between those states.
+ * The planner's day: what sits in each block — tasks and the commitments around
+ * them — what still needs a time, and what carried over, plus the actions that move
+ * tasks between those states.
  *
  * Extracted so the screen stays a composition (§3.2/§3.3) and so the grouping can be
  * reasoned about in one place. The rules themselves are pure and tested in
@@ -24,9 +28,19 @@ import type { Task } from '@/types/entities'
  */
 export const usePlannerDay = (feed: TaskFeed) => {
   const { show } = useFeedback()
+  const { hasAccess } = usePlan()
   const { completeTask, scheduleInSlot, removeFromDay } = useTaskMutations({
     userEmail: feed.userEmail,
     onFeedback: show,
+    // A block added by hand reaches Google Calendar, as an accepted suggestion does.
+    syncCalendar: hasAccess('calendar_sync'),
+  })
+  // Shares its queries with Home's Today's Commitments, so this costs no requests.
+  const timeline = useTodayTimeline({
+    userEmail: feed.userEmail,
+    tasks: feed.allTasks,
+    nowMs: feed.nowMs,
+    timeZone: feed.timeZone,
   })
 
   const [openPicker, setOpenPicker] = useState<SlotKey | null>(null)
@@ -38,18 +52,16 @@ export const usePlannerDay = (feed: TaskFeed) => {
     [feed.nowMs, feed.timeZone],
   )
 
+  const timelineItems = timeline.items
   const day = useMemo(() => {
     const plan = filterDailyPlannerTasks(feed.allTasks, when)
 
     return {
       ...plan,
-      blocks: TIME_SLOTS.map((slot) => ({
-        slot,
-        tasks: plan.todayScheduled.filter((task) => slotKeyFor(task, when.timeZone) === slot.key),
-      })),
+      ...buildUnifiedDay({ tasks: plan.todayScheduled, fixed: timelineItems, timeZone: when.timeZone }),
       candidates: schedulableTasks(feed.allTasks, when),
     }
-  }, [feed.allTasks, when])
+  }, [feed.allTasks, timelineItems, when])
 
   const schedule = useCallback(
     (task: Task, slot: SlotKey) => {

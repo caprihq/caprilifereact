@@ -33,11 +33,11 @@ const SECTIONS = [
   },
   {
     heading: 'AI features',
-    body: 'When you use AI prioritisation, recommendations, voice capture or subtasks, the task text is sent to our AI provider to generate a recommendation, along with your working hours and, if you have connected Google Calendar, the titles and times of today\'s events, so the answer fits your schedule. Our AI providers do not use it to train their models.',
+    body: 'When you use AI prioritisation, recommendations, voice capture or subtasks, the task text is sent to our AI provider to generate a recommendation, along with your working hours and, if you have connected Google Calendar, the titles and times of today\'s events, so the answer fits your schedule. Smart Auto-Schedule sends your open task titles, deadlines and lengths, with the titles, times and locations of the next seven days of commitments and calendar events, to Anthropic\'s Claude so it can plan around them. Task notes and your email address are never sent to it. Our AI providers do not use it to train their models.',
   },
   {
     heading: 'Calendar',
-    body: 'If you connect Google Calendar, CAPRI reads your events, including their titles and times, to show your day alongside your tasks and plan around your commitments. It writes to your calendar only for time blocks you accept from Smart Auto-Schedule, and never changes anything else. CAPRI\'s use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements, and it is never used to train generalized AI models.',
+    body: 'If you connect Google Calendar, CAPRI reads your events, including their titles, times and locations, to show your day alongside your tasks and plan around your commitments. It writes to your calendar only for time blocks you accept from Smart Auto-Schedule or add to a block in the planner, and never changes anything else. CAPRI\'s use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements, and it is never used to train generalized AI models.',
   },
   {
     heading: 'Deleting your data',

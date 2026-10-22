@@ -4,11 +4,14 @@ import Ionicons from 'react-native-vector-icons/Ionicons'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import type { TimeSlot } from '../logic/timeSlots'
+import type { DayRow } from '../logic/unifiedDay'
 import type { Task } from '@/types/entities'
+import { PlannerFixedRow } from './PlannerFixedRow'
 import { PlannerTaskRow } from './PlannerTaskRow'
 
 /**
- * One block of the day — Morning, Afternoon or Evening — with its tasks.
+ * One block of the day — Morning, Afternoon or Evening — with everything in it:
+ * tasks, and the commitments and meetings they have to fit around (`unifiedDay`).
  *
  * The web client tints each block a different pastel (amber / orange / indigo),
  * which fights whatever accent the user picked. Here the block header carries an
@@ -21,7 +24,7 @@ import { PlannerTaskRow } from './PlannerTaskRow'
 
 type PlannerSlotProps = {
   readonly slot: TimeSlot
-  readonly tasks: readonly Task[]
+  readonly rows: readonly DayRow[]
   readonly nowMs: number
   readonly timeZone: string
   readonly pickerOpen: boolean
@@ -31,9 +34,13 @@ type PlannerSlotProps = {
   readonly onRemove: (task: Task) => void
 }
 
+/** A scheduled-event task opens like any task; other fixed items have nowhere to go. */
+const openerFor = (task: Task | undefined, onOpen: (task: Task) => void) =>
+  task ? () => onOpen(task) : undefined
+
 export const PlannerSlot = ({
   slot,
-  tasks,
+  rows,
   nowMs,
   timeZone,
   pickerOpen,
@@ -43,7 +50,7 @@ export const PlannerSlot = ({
   onRemove,
 }: PlannerSlotProps) => {
   const theme = useTheme()
-  const count = tasks.length
+  const count = rows.length
 
   return (
     <View style={{ gap: theme.spacing.sm }}>
@@ -81,17 +88,25 @@ export const PlannerSlot = ({
       */}
       {count === 0 ? null : (
         <View style={{ gap: theme.spacing.sm }}>
-          {tasks.map((task) => (
-            <PlannerTaskRow
-              key={task.id}
-              task={task}
-              nowMs={nowMs}
-              timeZone={timeZone}
-              onOpen={() => onOpen(task)}
-              onComplete={() => onComplete(task)}
-              onRemove={() => onRemove(task)}
-            />
-          ))}
+          {rows.map((row) =>
+            row.kind === 'fixed' ? (
+              <PlannerFixedRow
+                key={row.key}
+                item={row.item}
+                onOpenTask={openerFor(row.item.task, onOpen)}
+              />
+            ) : (
+              <PlannerTaskRow
+                key={row.key}
+                task={row.task}
+                nowMs={nowMs}
+                timeZone={timeZone}
+                onOpen={() => onOpen(row.task)}
+                onComplete={() => onComplete(row.task)}
+                onRemove={() => onRemove(row.task)}
+              />
+            ),
+          )}
         </View>
       )}
     </View>

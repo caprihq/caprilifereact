@@ -20,6 +20,7 @@ import { planningWindow } from '../logic/planningWindow'
 import { useTaskFeed } from '../hooks/useTaskFeed'
 import { PlannerSlot } from '../components/PlannerSlot'
 import { PlannerAside } from '../components/PlannerAside'
+import { PlannerAllDay } from '../components/PlannerAllDay'
 import { SlotTaskPicker } from '../components/SlotTaskPicker'
 
 /**
@@ -28,8 +29,10 @@ import { SlotTaskPicker } from '../components/SlotTaskPicker'
  * Replaces a flat list of three sections. The web client's planner is the model:
  * Morning / Afternoon / Evening, each able to take a task by hand, then "Needs
  * attention" for work due today that has no time yet, and carryover for anything
- * older. Grouping and scheduling rules are pure and tested — see `timeSlots` and
- * `plannerLogic`.
+ * older. Each block shows the day's commitments and meetings beside its tasks, so
+ * the plan and what it has to fit around are read in one place. Grouping and
+ * scheduling rules are pure and tested — see `timeSlots`, `plannerLogic` and
+ * `unifiedDay`.
  */
 /**
  * Pull-to-refresh, waiting for the data.
@@ -51,17 +54,15 @@ const usePullToRefresh = (refetch: () => Promise<void>) => {
   return { refreshing, onRefresh }
 }
 
-export const PlannerScreen = () => {
-  const theme = useTheme()
-  const contentBottom = useContentBottom()
-  const wash = useWash()
+/**
+ * Where the planner leads: a task's detail, the full list, and the auto-schedule
+ * review behind its plan gate. Its own hook so the screen stays a composition
+ * inside the §3.2 limits.
+ */
+const usePlannerActions = () => {
   const navigation = useNavigation<AppNavigation>()
-  const { data: user } = useCurrentUser()
-  const feed = useTaskFeed()
   const { hasAccess } = usePlan()
-  const planner = usePlannerDay(feed)
   const upgrade = useUpgradePrompt()
-  const { refreshing, onRefresh } = usePullToRefresh(feed.refetch)
 
   const open = useCallback(
     (task: Task) => navigation.navigate('TaskDetail', { taskId: task.id }),
@@ -81,6 +82,21 @@ export const PlannerScreen = () => {
     navigation.navigate('AutoSchedule')
   }, [hasAccess, navigation, upgrade])
 
+  const seeAll = useCallback(() => navigation.navigate('AllTasks'), [navigation])
+
+  return { open, autoSchedule, seeAll, upgrade }
+}
+
+export const PlannerScreen = () => {
+  const theme = useTheme()
+  const contentBottom = useContentBottom()
+  const wash = useWash()
+  const { data: user } = useCurrentUser()
+  const feed = useTaskFeed()
+  const planner = usePlannerDay(feed)
+  const { open, autoSchedule, seeAll, upgrade } = usePlannerActions()
+  const { refreshing, onRefresh } = usePullToRefresh(feed.refetch)
+
   if (feed.isLoading) return <LoadingView />
 
   return (
@@ -96,11 +112,13 @@ export const PlannerScreen = () => {
     >
       <Button label="Smart Auto-Schedule" onPress={autoSchedule} />
 
-      {planner.day.blocks.map(({ slot, tasks }) => (
+      <PlannerAllDay items={planner.day.allDay} />
+
+      {planner.day.blocks.map(({ slot, rows }) => (
         <View key={slot.key} style={{ gap: theme.spacing.sm }}>
           <PlannerSlot
             slot={slot}
-            tasks={tasks}
+            rows={rows}
             nowMs={feed.nowMs}
             timeZone={feed.timeZone}
             pickerOpen={planner.openPicker === slot.key}
@@ -125,7 +143,7 @@ export const PlannerScreen = () => {
         tasks={planner.day.needsAttention}
         tone="warning"
         onOpen={open}
-        onSeeAll={() => navigation.navigate('AllTasks')}
+        onSeeAll={seeAll}
       />
 
       <PlannerAside
@@ -134,7 +152,7 @@ export const PlannerScreen = () => {
         tasks={planner.day.overdue}
         tone="muted"
         onOpen={open}
-        onSeeAll={() => navigation.navigate('AllTasks')}
+        onSeeAll={seeAll}
       />
 
       <Text variant="caption" tone="muted" align="center">

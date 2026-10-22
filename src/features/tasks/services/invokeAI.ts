@@ -1,5 +1,5 @@
 import { base44 } from '@/services/api'
-import { UPGRADE_REQUIRED, upgradeRequiredError } from '../logic/upgradeError'
+import { refusalCodeOf, refusalError } from '../logic/upgradeError'
 
 /**
  * Every model call in the app goes through here.
@@ -28,15 +28,23 @@ export const invokeAI = async (
   prompt: string,
   responseSchema?: Record<string, unknown>,
 ): Promise<unknown> => {
-  const response = (await base44.functions.invoke('invokeAI', {
-    feature,
-    prompt,
-    ...(responseSchema ? { response_json_schema: responseSchema } : {}),
-  })) as InvokeResponse
+  const call = () =>
+    base44.functions.invoke('invokeAI', {
+      feature,
+      prompt,
+      ...(responseSchema ? { response_json_schema: responseSchema } : {}),
+    }) as Promise<InvokeResponse>
 
-  // A 403 surfaces as a payload rather than a throw through this SDK, so the refusal
-  // has to be recognised rather than assumed to be a result.
-  if (response.data?.error === UPGRADE_REQUIRED) throw upgradeRequiredError(feature)
+  // A refusal — 403 upgrade_required, 429 daily_limit — is thrown by this SDK's
+  // functions client, body and all, so it is read from the error as well as from a
+  // resolved reply (see `refusalCodeOf`). Tagged, it lets callers say "upgrade" or
+  // "resets tomorrow" instead of "try again"; anything else is rethrown as it came.
+  const response = await call().catch((error: unknown) => {
+    throw refusalError(refusalCodeOf(error), feature) ?? error
+  })
+
+  const refusal = refusalError(refusalCodeOf(response), feature)
+  if (refusal) throw refusal
 
   return response.data?.result
 }

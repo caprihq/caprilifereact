@@ -29,6 +29,12 @@ export type TimelineItem = {
   /** e.g. "9:00 AM – 10:00 AM", or null when there is no usable time. */
   readonly timeLabel: string | null
   readonly source: 'commitment' | 'task' | 'calendar'
+  /**
+   * A whole-day calendar entry. Its `sortMs` is midnight, which is a sort key, not
+   * a time — the planner shows these apart from its blocks rather than as the first
+   * thing in the morning.
+   */
+  readonly allDay?: boolean
   readonly location?: string | null
   /** Present for internal rows, so the caller can open the underlying record. */
   readonly commitment?: Commitment
@@ -78,8 +84,22 @@ const msOf = (iso: string | undefined): number | null => {
 /** The time a scheduled-event task is anchored to. */
 const taskAnchor = (task: Task): string | undefined => task.scheduled_start_time ?? task.due_date
 
-const fromCommitments = (input: TimelineInput): readonly TimelineItem[] =>
-  input.commitments.flatMap((commitment) => {
+/**
+ * Google events CAPRI wrote for its own tasks (`syncTasksToCalendar`).
+ *
+ * Once a task's block is synced, the calendar carries it back here — as a live event
+ * and, before the backend learned to skip it, as an imported commitment — so the
+ * same task appeared twice: once as work, once as a "meeting". The task row is the
+ * real one; its calendar echo is dropped.
+ */
+const ownTaskBlocks = (input: TimelineInput): ReadonlySet<string> =>
+  new Set(input.tasks.map((task) => task.calendar_event_id).filter((id): id is string => !!id))
+
+const fromCommitments = (input: TimelineInput): readonly TimelineItem[] => {
+  const ownBlocks = ownTaskBlocks(input)
+
+  return input.commitments.flatMap((commitment) => {
+    if (commitment.external_event_id && ownBlocks.has(commitment.external_event_id)) return []
     if (!isLocalToday(commitment.start_time, input.nowMs, input.timeZone)) return []
     const sortMs = msOf(commitment.start_time)
     if (sortMs === null) return []
@@ -94,6 +114,7 @@ const fromCommitments = (input: TimelineInput): readonly TimelineItem[] =>
       },
     ]
   })
+}
 
 const fromScheduledTasks = (input: TimelineInput): readonly TimelineItem[] =>
   input.tasks.flatMap((task) => {
@@ -133,9 +154,10 @@ const importedEventIds = (input: TimelineInput): ReadonlySet<string> =>
 
 const fromCalendar = (input: TimelineInput): readonly TimelineItem[] => {
   const alreadyImported = importedEventIds(input)
+  const ownBlocks = ownTaskBlocks(input)
 
   return input.events.flatMap((event) => {
-    if (alreadyImported.has(event.id)) return []
+    if (alreadyImported.has(event.id) || ownBlocks.has(event.id)) return []
     if (!isLocalToday(event.start, input.nowMs, input.timeZone)) return []
     const sortMs = msOf(event.start)
     if (sortMs === null) return []
@@ -146,6 +168,7 @@ const fromCalendar = (input: TimelineInput): readonly TimelineItem[] => {
         title: event.title,
         timeLabel: event.allDay ? 'All day' : rangeLabel(event.start, event.end, input.timeZone),
         source: 'calendar' as const,
+        ...(event.allDay ? { allDay: true } : {}),
         location: event.location ?? null,
       },
     ]

@@ -95,6 +95,8 @@ describe('buildTodayTimeline', () => {
   it('labels an all-day event as All day', () => {
     const [item] = buildTodayTimeline({ ...empty, events: [event({ allDay: true })], ...UTC })
     expect(item?.timeLabel).toBe('All day')
+    // Flagged, so the planner can keep it out of its time blocks.
+    expect(item?.allDay).toBe(true)
   })
 
   it('carries the location through, defaulting to null', () => {
@@ -233,5 +235,21 @@ describe('imported calendar events', () => {
     })
 
     expect(items).toHaveLength(2)
+  })
+})
+
+describe("buildTodayTimeline — CAPRI's own calendar blocks", () => {
+  it('does not show a synced task again as its calendar event or imported row', () => {
+    // A planned task, synced to Google as event g1, which then came back as both a
+    // live event and an imported commitment.
+    const planned = task({ id: 't9', title: 'Write report', is_scheduled_event: false, calendar_event_id: 'g1' })
+    const items = buildTodayTimeline({
+      commitments: [commitment({ id: 'c9', title: 'Write report', external_event_id: 'g1' })],
+      tasks: [planned],
+      events: [event({ id: 'g1', title: 'Write report' })],
+      ...UTC,
+    })
+
+    expect(items).toEqual([])
   })
 })

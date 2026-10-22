@@ -4,6 +4,11 @@ import { TASK_PRIORITIES } from '@/types/entities'
 import type { Task, TaskPriority } from '@/types/entities'
 import { bandForScore, clampScore } from '../logic/priorityBand'
 import { logAIUsage } from './aiUsageLog'
+import { DAILY_LIMIT_MESSAGE, isDailyLimit } from '../logic/upgradeError'
+
+/** "Resets tomorrow" when the day's allowance is spent; "try again" for anything else. */
+const failureMessage = (error: unknown): string =>
+  isDailyLimit(error) ? DAILY_LIMIT_MESSAGE : "CAPRI couldn't reach the model. Try again."
 
 /**
  * Ask CAPRI to re-judge a task's priority.
@@ -103,6 +108,6 @@ export const reprioritiseTask = async (
   } catch (error) {
     log(false, describeError(error).message)
     diagFailure('ai:reprioritise', error)
-    return { kind: 'error', message: "CAPRI couldn't reach the model. Try again." }
+    return { kind: 'error', message: failureMessage(error) }
   }
 }

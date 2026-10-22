@@ -1,4 +1,4 @@
-import { unplacedHeading, unplacedReason } from './unplacedReason'
+import { unplacedHeading, unplacedLine, unplacedReason } from './unplacedReason'
 
 describe('unplacedReason', () => {
   it('gives each reason its own answer, because each has a different fix', () => {
@@ -21,7 +21,24 @@ describe('unplacedReason', () => {
 
 describe('unplacedHeading', () => {
   it('carries the count, so it is never written by hand', () => {
-    expect(unplacedHeading(3)).toBe('Not scheduled (3)')
-    expect(unplacedHeading(1)).toBe('Not scheduled (1)')
+    expect(unplacedHeading(3)).toBe('Needs attention (3)')
+    expect(unplacedHeading(1)).toBe('Needs attention (1)')
+  })
+})
+
+describe('unplacedLine', () => {
+  it("prefers CAPRI's own reason when it gave one", () => {
+    expect(
+      unplacedLine({
+        task_id: 't',
+        reason: 'ai_not_scheduled',
+        detail: 'Your week is already full; this can wait.',
+      }),
+    ).toBe('Your week is already full; this can wait.')
+  })
+
+  it('falls back to the wording for the code', () => {
+    expect(unplacedLine({ task_id: 't', reason: 'ai_not_scheduled' })).toBe('Left for later this week')
+    expect(unplacedLine({ task_id: 't', reason: 'week_full', detail: '   ' })).toBe('Your week is full')
   })
 })
