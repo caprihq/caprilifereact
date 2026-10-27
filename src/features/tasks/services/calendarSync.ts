@@ -1,5 +1,6 @@
 import { base44 } from '@/services/api'
 import { diag, logWarn } from '@/utils'
+import { coalesce } from './coalesce'
 
 /**
  * Push CAPRI's scheduled blocks into the user's Google Calendar.
@@ -15,8 +16,11 @@ import { diag, logWarn } from '@/utils'
  * Fire and forget. The task is already saved by the time this runs; a calendar that
  * has not caught up is a delay, not a failure, and the next accepted plan sweeps it
  * up anyway.
+ *
+ * One sync at a time (see `coalesce`): two side by side could each create the same
+ * task's event, leaving the block in the calendar twice.
  */
-export const syncTasksToCalendar = async (): Promise<void> => {
+export const syncTasksToCalendar = coalesce(async (): Promise<void> => {
   try {
     const response = (await base44.functions.invoke('syncTasksToCalendar', {})) as {
       data?: { synced?: number; connected?: boolean }
@@ -25,7 +29,7 @@ export const syncTasksToCalendar = async (): Promise<void> => {
   } catch (error) {
     logWarn('[calendar] sync failed', error)
   }
-}
+})
 
 /**
  * Sync once a save has landed on the server.

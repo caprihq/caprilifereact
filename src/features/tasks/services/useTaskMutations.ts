@@ -5,7 +5,7 @@ import { windowForSlot } from '@/features/tasks/logic/timeSlots'
 import type { SlotKey } from '@/features/tasks/logic/timeSlots'
 import type { FeedbackTone } from '@/store'
 import type { Task, TaskStatus } from '@/types/entities'
-import { syncAfter } from './calendarSync'
+import { useCalendarSaves } from './useCalendarSaves'
 import { useTaskCrud } from './useTaskCrud'
 import type { TaskUpdate } from './useTaskCrud'
 
@@ -58,6 +58,7 @@ export const useTaskMutations = ({ userEmail, onFeedback, syncCalendar = false }
   )
 
   const { createTask, updateTask, deleteTask } = useTaskCrud(userEmail, reportFailure)
+  const { saveTask, saveWithBlock, removeTask } = useCalendarSaves({ updateTask, deleteTask, syncCalendar })
 
   /** Status change with an undo affordance. */
   const setStatus = useCallback(
@@ -66,15 +67,15 @@ export const useTaskMutations = ({ userEmail, onFeedback, syncCalendar = false }
       const completedAt =
         status === 'completed' ? { completed_date: new Date().toISOString() } : {}
 
-      updateTask.mutate({ id: task.id, data: { status, ...completedAt } })
+      saveWithBlock(task, { status, ...completedAt })
 
       onFeedback?.({
         message,
         tone: 'success',
-        undo: () => updateTask.mutate({ id: task.id, data: { status: previousStatus } }),
+        undo: () => saveWithBlock(task, { status: previousStatus }),
       })
     },
-    [updateTask, onFeedback],
+    [saveWithBlock, onFeedback],
   )
 
   /**
@@ -102,20 +103,18 @@ export const useTaskMutations = ({ userEmail, onFeedback, syncCalendar = false }
    */
   const scheduleInSlot = useCallback(
     (task: Task, slot: SlotKey, when: { readonly nowMs: number; readonly timeZone: string }) => {
-      const change = { id: task.id, data: windowForSlot(task, slot, when) }
       // The same promise the review screen chains on, so a block added by hand
       // reaches the calendar exactly as an accepted suggestion does.
-      if (syncCalendar) syncAfter(updateTask.mutateAsync(change))
-      else updateTask.mutate(change)
+      saveTask({ id: task.id, data: windowForSlot(task, slot, when) }, true)
       onFeedback?.({
         message: 'Added to your day.',
         tone: 'success',
         undo: () => {
-          updateTask.mutate({ id: task.id, data: CLEARED_SCHEDULE })
+          saveTask({ id: task.id, data: CLEARED_SCHEDULE }, true)
         },
       })
     },
-    [updateTask, onFeedback, syncCalendar],
+    [saveTask, onFeedback],
   )
 
   /**
@@ -128,22 +127,23 @@ export const useTaskMutations = ({ userEmail, onFeedback, syncCalendar = false }
    */
   const removeFromDay = useCallback(
     (task: Task) => {
-      updateTask.mutate({ id: task.id, data: CLEARED_SCHEDULE })
+      saveTask({ id: task.id, data: CLEARED_SCHEDULE }, true)
       onFeedback?.({
         message: 'Removed from today.',
         tone: 'success',
         undo: () => {
-          updateTask.mutate({ id: task.id, data: restoredSchedule(task) })
+          saveTask({ id: task.id, data: restoredSchedule(task) }, true)
         },
       })
     },
-    [updateTask, onFeedback],
+    [saveTask, onFeedback],
   )
 
   return {
     createTask,
     updateTask,
-    deleteTask,
+    saveTask,
+    removeTask,
     scheduleInSlot,
     removeFromDay,
     completeTask,

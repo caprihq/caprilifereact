@@ -91,10 +91,14 @@ export const DEFAULT_DURATION_MINUTES = 30
 /**
  * The window a task takes when dropped into a slot today.
  *
- * All three fields are written together, as the web client does: `due_date` keeps
- * the task in "today" queries that only look at due dates, while the scheduled pair
- * is what places it in a block. Writing only one of them is what leaves a task
- * showing in one view and missing from another.
+ * The scheduled pair is what places it in a block. A task with no due date also gets
+ * one, so "today" views that only read due dates still find it.
+ *
+ * **An existing due date is kept.** This used to overwrite it with the slot's start,
+ * so a task due Friday put into this morning became due this morning: the real
+ * deadline was gone, and the planner later treated it as overdue days early. Views
+ * place a scheduled task by `scheduled_start_time` first (`anchorOf`), so keeping the
+ * deadline hides nothing.
  *
  * "9am" means 9am **where the user is**, which is why this goes through
  * `localHourInstant` rather than `setHours`.
@@ -113,7 +117,7 @@ export const windowForSlot = (
   const end = new Date(start.getTime() + minutes * 60_000)
 
   return {
-    due_date: start.toISOString(),
+    ...(task.due_date ? {} : { due_date: start.toISOString() }),
     scheduled_start_time: start.toISOString(),
     scheduled_end_time: end.toISOString(),
   }

@@ -32,6 +32,8 @@ type PlannerSlotProps = {
   readonly onOpen: (task: Task) => void
   readonly onComplete: (task: Task) => void
   readonly onRemove: (task: Task) => void
+  /** The overlap warning for a task, when it has one. */
+  readonly overlapFor?: (taskId: string) => string | undefined
 }
 
 /** A scheduled-event task opens like any task; other fixed items have nowhere to go. */
@@ -48,6 +50,7 @@ export const PlannerSlot = ({
   onOpen,
   onComplete,
   onRemove,
+  overlapFor,
 }: PlannerSlotProps) => {
   const theme = useTheme()
   const count = rows.length
@@ -104,6 +107,7 @@ export const PlannerSlot = ({
                 onOpen={() => onOpen(row.task)}
                 onComplete={() => onComplete(row.task)}
                 onRemove={() => onRemove(row.task)}
+                overlap={overlapFor?.(row.task.id)}
               />
             ),
           )}

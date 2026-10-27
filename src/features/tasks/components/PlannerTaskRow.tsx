@@ -25,6 +25,8 @@ type PlannerTaskRowProps = {
   readonly onOpen: () => void
   readonly onComplete: () => void
   readonly onRemove: () => void
+  /** "Overlaps Team meeting · 2:00 PM – 3:00 PM", when this task clashes. */
+  readonly overlap?: string | undefined
 }
 
 const dotColour = (task: Task, theme: AppTheme): string => {
@@ -51,6 +53,7 @@ export const PlannerTaskRow = ({
   onOpen,
   onComplete,
   onRemove,
+  overlap,
 }: PlannerTaskRowProps) => {
   const theme = useTheme()
   const done = task.status === 'completed'
@@ -82,6 +85,11 @@ export const PlannerTaskRow = ({
         {time || length ? (
           <Text variant="caption" tone="muted">
             {[time, length].filter(Boolean).join(' · ')}
+          </Text>
+        ) : null}
+        {overlap ? (
+          <Text variant="caption" tone="danger" numberOfLines={1}>
+            <Ionicons name="alert-circle" size={12} color={theme.colors.danger} /> {overlap}
           </Text>
         ) : null}
       </View>

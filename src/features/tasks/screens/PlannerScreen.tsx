@@ -21,6 +21,7 @@ import { useTaskFeed } from '../hooks/useTaskFeed'
 import { PlannerSlot } from '../components/PlannerSlot'
 import { PlannerAside } from '../components/PlannerAside'
 import { PlannerAllDay } from '../components/PlannerAllDay'
+import { ClashList, clashHeading } from '../components/ClashList'
 import { SlotTaskPicker } from '../components/SlotTaskPicker'
 
 /**
@@ -84,7 +85,17 @@ const usePlannerActions = () => {
 
   const seeAll = useCallback(() => navigation.navigate('AllTasks'), [navigation])
 
-  return { open, autoSchedule, seeAll, upgrade }
+  // Overlap fixes: the review screen planning just this task, or the task itself.
+  const findNewTime = useCallback(
+    (taskId: string) => navigation.navigate('AutoSchedule', { rescheduleTaskId: taskId }),
+    [navigation],
+  )
+  const changeTime = useCallback(
+    (taskId: string) => navigation.navigate('TaskDetail', { taskId }),
+    [navigation],
+  )
+
+  return { open, autoSchedule, seeAll, upgrade, findNewTime, changeTime }
 }
 
 export const PlannerScreen = () => {
@@ -94,7 +105,7 @@ export const PlannerScreen = () => {
   const { data: user } = useCurrentUser()
   const feed = useTaskFeed()
   const planner = usePlannerDay(feed)
-  const { open, autoSchedule, seeAll, upgrade } = usePlannerActions()
+  const { open, autoSchedule, seeAll, upgrade, findNewTime, changeTime } = usePlannerActions()
   const { refreshing, onRefresh } = usePullToRefresh(feed.refetch)
 
   if (feed.isLoading) return <LoadingView />
@@ -112,6 +123,14 @@ export const PlannerScreen = () => {
     >
       <Button label="Smart Auto-Schedule" onPress={autoSchedule} />
 
+      <ClashList
+        heading={clashHeading(planner.clashes.length, 'today')}
+        items={planner.clashes}
+        onFindTime={findNewTime}
+        onChangeTime={changeTime}
+        onKeepBoth={planner.keepBoth}
+      />
+
       <PlannerAllDay items={planner.day.allDay} />
 
       {planner.day.blocks.map(({ slot, rows }) => (
@@ -126,6 +145,7 @@ export const PlannerScreen = () => {
             onOpen={open}
             onComplete={planner.completeTask}
             onRemove={planner.removeFromDay}
+            overlapFor={planner.overlapLabelFor}
           />
 
           {planner.openPicker === slot.key ? (

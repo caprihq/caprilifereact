@@ -59,6 +59,14 @@ describe('slotKeyFor', () => {
 })
 
 describe('windowForSlot', () => {
+  it('keeps a task\'s own due date — planning a time is not moving the deadline', () => {
+    const due = '2026-03-13T15:00:00.000Z'
+    const window = windowForSlot(task({ due_date: due }), 'morning', { nowMs: NOW, timeZone: 'UTC' })
+
+    expect(window.due_date).toBeUndefined()
+    expect(localHourOf(window.scheduled_start_time, 'UTC')).toBe(9)
+  })
+
   it('writes all three fields, because views read different ones', () => {
     // Writing only the scheduled pair leaves the task missing from anything that
     // filters on due_date, and vice versa.

@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { ScheduledEventSection } from './ScheduledEventSection'
+import { ScheduledTimeSection } from './ScheduledTimeSection'
 import { taskProblems } from '../logic/taskValidation'
 import type { TaskProblem } from '../logic/taskValidation'
 import { Picker } from '@/components/Picker'
@@ -122,6 +123,8 @@ export const TaskFieldsForm = ({
         onChangeEndDate={(recurrence_end_date) => onChange({ ...draft, recurrence_end_date })}
         onUpgrade={onUpgrade ?? (() => undefined)}
       />
+
+      <ScheduledTimeSection draft={draft} onChange={onChange} />
 
       <ScheduledEventSection draft={draft} onChange={onChange} />
 

@@ -41,7 +41,7 @@ const SECTIONS = [
   },
   {
     heading: 'Deleting your data',
-    body: 'Delete account, at the bottom of the Profile tab, removes your account and everything in it permanently. You do not need to ask us.',
+    body: 'Delete account, at the bottom of the Profile tab, removes your account and everything in it permanently. You do not need to ask us. Messages you sent to support are kept as support records; email support@caprihq.com to have those removed too.',
   },
 ]
 

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { TaskEntity, queryKeys } from '@/services/api'
+import { TaskEntity, filterAll, queryKeys } from '@/services/api'
 import type { Task } from '@/types/entities'
 
 /**
@@ -22,5 +22,5 @@ export const useTasks = (userEmail: string | null) =>
     queryKey: queryKeys.tasks(userEmail),
     enabled: !!userEmail,
     queryFn: async (): Promise<readonly Task[]> =>
-      TaskEntity().filter({ created_by: userEmail }, '-priority_score'),
+      filterAll(TaskEntity(), { created_by: userEmail }, '-priority_score'),
   })

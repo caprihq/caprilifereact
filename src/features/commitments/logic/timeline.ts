@@ -35,6 +35,10 @@ export type TimelineItem = {
    * thing in the morning.
    */
   readonly allDay?: boolean
+  /** When it ends — what overlap checks need. Absent when the source has no usable end. */
+  readonly endMs?: number
+  /** A Google event marked "free": shown, but not busy, so never a clash. */
+  readonly free?: boolean
   readonly location?: string | null
   /** Present for internal rows, so the caller can open the underlying record. */
   readonly commitment?: Commitment
@@ -81,6 +85,10 @@ const msOf = (iso: string | undefined): number | null => {
   return Number.isNaN(ms) ? null : ms
 }
 
+/** `{ endMs }` when the end is a real instant after the start, else nothing. */
+const endAfter = (startMs: number, endMs: number | null): { endMs?: number } =>
+  endMs !== null && endMs > startMs ? { endMs } : {}
+
 /** The time a scheduled-event task is anchored to. */
 const taskAnchor = (task: Task): string | undefined => task.scheduled_start_time ?? task.due_date
 
@@ -110,6 +118,7 @@ const fromCommitments = (input: TimelineInput): readonly TimelineItem[] => {
         title: commitment.title,
         timeLabel: rangeLabel(commitment.start_time, commitment.end_time, input.timeZone),
         source: 'commitment' as const,
+        ...endAfter(sortMs, msOf(commitment.end_time)),
         commitment,
       },
     ]
@@ -130,6 +139,7 @@ const fromScheduledTasks = (input: TimelineInput): readonly TimelineItem[] =>
         title: task.title,
         timeLabel: formatTimeOfDay(anchor, input.timeZone),
         source: 'task' as const,
+        ...endAfter(sortMs, msOf(task.scheduled_end_time) ?? sortMs + (task.estimated_minutes ?? 60) * 60_000),
         task,
       },
     ]
@@ -169,6 +179,8 @@ const fromCalendar = (input: TimelineInput): readonly TimelineItem[] => {
         timeLabel: event.allDay ? 'All day' : rangeLabel(event.start, event.end, input.timeZone),
         source: 'calendar' as const,
         ...(event.allDay ? { allDay: true } : {}),
+        ...endAfter(sortMs, msOf(event.end)),
+        ...(event.free ? { free: true } : {}),
         location: event.location ?? null,
       },
     ]

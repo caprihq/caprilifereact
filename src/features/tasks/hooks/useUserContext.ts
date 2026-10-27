@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 
 import { useCalendarEvents, useCommitments } from '@/features/commitments'
 import { usePlan } from '@/hooks/usePlan'
-import { FocusTimeEntity, queryKeys, useCurrentUser } from '@/services/api'
+import { FocusTimeEntity, filterAll, queryKeys, useCurrentUser } from '@/services/api'
 import { buildContextSummary } from '../logic/userContext'
 import type { FocusTime } from '@/types/entities'
 
@@ -35,7 +35,7 @@ const useFocusTimes = (userEmail: string | null) =>
     queryKey: queryKeys.focusTimes(userEmail),
     enabled: !!userEmail,
     queryFn: async (): Promise<readonly FocusTime[]> =>
-      FocusTimeEntity().filter({ created_by: userEmail }),
+      filterAll(FocusTimeEntity(), { created_by: userEmail }),
   })
 
 export const useUserContext = (options: {

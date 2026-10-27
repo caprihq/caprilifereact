@@ -1,4 +1,5 @@
 import { View } from 'react-native'
+import { useHomeOverlapCount } from '../hooks/useHomeOverlapCount'
 
 import { useTheme } from '@/hooks/useTheme'
 import type { BehaviouralSignals } from '@/features/tasks/logic/capriScoring'
@@ -48,6 +49,7 @@ type HomeSectionsProps = {
 export const HomeSections = ({ feed, signals, actions, upNext }: HomeSectionsProps) => {
   const theme = useTheme()
   const { onOpen, onComplete, onDefer, onCancel, onViewPlan, onAddTask } = actions
+  const overlapCount = useHomeOverlapCount(feed)
 
   const hero = upNext.hero?.task ?? feed.heroTask
   /**
@@ -111,6 +113,7 @@ export const HomeSections = ({ feed, signals, actions, upNext }: HomeSectionsPro
             timeZone={feed.timeZone}
             onOpen={onOpen}
             onViewAll={onViewPlan}
+            overlapCount={overlapCount}
           />
         </View>
       )}

@@ -1,4 +1,5 @@
 import { Pressable, View } from 'react-native'
+import Ionicons from 'react-native-vector-icons/Ionicons'
 
 import { Card } from '@/components/Card'
 import { EmptyState } from '@/components/EmptyState'
@@ -18,14 +19,40 @@ type TodayPlanCardProps = {
   readonly timeZone: string
   readonly onOpen: (task: Task) => void
   readonly onViewAll: () => void
+  /** Today's clashes. Shown as one line that opens the planner, where they are fixed. */
+  readonly overlapCount?: number
 }
 
-export const TodayPlanCard = ({ tasks, timeZone, onOpen, onViewAll }: TodayPlanCardProps) => {
+export const TodayPlanCard = ({ tasks, timeZone, onOpen, onViewAll, overlapCount = 0 }: TodayPlanCardProps) => {
   const theme = useTheme()
   const visible = tasks.slice(0, MAX_ROWS)
 
   return (
     <Card flush>
+      {overlapCount > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onViewAll}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+            paddingHorizontal: theme.spacing.lg,
+            paddingVertical: theme.spacing.md,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.colors.border,
+          }}
+        >
+          <Ionicons name="alert-circle" size={18} color={theme.colors.danger} />
+          <Text variant="label" tone="danger" style={{ flex: 1 }}>
+            {overlapCount === 1 ? '1 overlap today' : `${String(overlapCount)} overlaps today`}
+          </Text>
+          <Text variant="label" tone="accent">
+            Review
+          </Text>
+        </Pressable>
+      ) : null}
+
       {visible.length === 0 ? (
         <EmptyState message="No tasks scheduled for today" />
       ) : (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react'
 import { StyleSheet } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useRoute } from '@react-navigation/native'
+import type { RouteProp } from '@react-navigation/native'
 import { size } from '@/theme'
 
 import { Card } from '@/components/Card'
@@ -13,10 +14,14 @@ import { Text } from '@/components/Text'
 import { useFeedback } from '@/hooks/useFeedback'
 import { useTheme } from '@/hooks/useTheme'
 import { useWash } from '@/hooks/useWash'
-import type { AppNavigation } from '@/navigation/types'
+import type { AppNavigation, AppStackParamList } from '@/navigation/types'
 import { track } from '@/services'
 import { SuggestionCard } from '../components/SuggestionCard'
 import { UnplacedList } from '../components/UnplacedList'
+import { ClashList, clashHeading } from '../components/ClashList'
+import { spanLabel } from '../logic/overlaps'
+import { clashFor } from '../logic/suggestionEdits'
+import { useWeekClashes } from '../hooks/useWeekClashes'
 import { moreToPlanCaption, plannerCaption } from '../logic/autoScheduleNotice'
 import { windowForSuggestion } from '../logic/suggestionWindow'
 import { useAutoSchedule } from '../hooks/useAutoSchedule'
@@ -70,12 +75,23 @@ export const AutoScheduleScreen = () => {
   const wash = useWash()
   const navigation = useNavigation<AppNavigation>()
   const feed = useTaskFeed()
-  const { run, running, suggestions, unplaced, meta, dismiss } = useAutoSchedule()
+  const route = useRoute<RouteProp<AppStackParamList, 'AutoSchedule'>>()
+  const rescheduleTaskId = route.params?.rescheduleTaskId
+  const plan = useAutoSchedule()
+  const { run, running, suggestions, unplaced, meta, dismiss } = plan
   const accept = useAccept(feed.userEmail, dismiss)
+  const week = useWeekClashes(plan.conflicts, feed.timeZone)
 
+  // Opened from an overlap: plan just that task. Otherwise, the whole week.
   useEffect(() => {
-    void run()
-  }, [run])
+    void run(rescheduleTaskId)
+  }, [run, rescheduleTaskId])
+
+  /** What a suggestion's time would clash with, as a warning line, if anything. */
+  const clashOf = (suggestion: Suggestion) => {
+    const clash = clashFor(suggestion, { others: suggestions, occupied: plan.occupied })
+    return clash ? spanLabel(clash, feed.timeZone) : undefined
+  }
 
   if (running) return <LoadingView message="Finding time for your work…" />
 
@@ -119,12 +135,22 @@ export const AutoScheduleScreen = () => {
             onAccept={() => accept(suggestion)}
             onSkip={() => dismiss(suggestion.task_id)}
             onEdit={() => navigation.navigate('TaskDetail', { taskId: suggestion.task_id })}
+            clash={clashOf(suggestion)}
+            onRetime={(start) => plan.retime(suggestion.task_id, start)}
           />
         ))
       )}
 
       {/* Below the proposals, because it is context rather than a decision. */}
       <UnplacedList unplaced={unplaced} tasks={feed.allTasks} />
+
+      <ClashList
+        heading={clashHeading(week.items.length, 'this week')}
+        items={week.items}
+        onFindTime={(taskId) => void plan.reschedule(taskId)}
+        onChangeTime={(taskId) => navigation.navigate('TaskDetail', { taskId })}
+        onKeepBoth={week.keepBoth}
+      />
     </KeyboardAwareScroll>
   )
 }

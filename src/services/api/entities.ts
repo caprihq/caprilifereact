@@ -1,4 +1,5 @@
 import { base44 } from './base44Client'
+import { allPages } from './filterAll'
 import type { AIUsageLog, Commitment, FocusTime, Task, User } from '@/types/entities'
 
 /**
@@ -25,7 +26,9 @@ import type { AIUsageLog, Commitment, FocusTime, Task, User } from '@/types/enti
 export type Writable<T> = { [K in keyof T]?: T[K] | null }
 
 type EntityModule<T> = {
-  filter: (query: Record<string, unknown>, sort?: string) => Promise<T[]>
+  filter: (
+    ...args: [query: Record<string, unknown>, sort?: string, limit?: number, skip?: number]
+  ) => Promise<T[]>
   get: (id: string) => Promise<T>
   create: (data: Writable<T>) => Promise<T>
   update: (id: string, data: Writable<T>) => Promise<T>
@@ -49,3 +52,13 @@ export const UserEntity = (): EntityModule<User> => resolve<User>('User')
 export const AIUsageLogEntity = (): EntityModule<AIUsageLog> => resolve<AIUsageLog>('AIUsageLog')
 /** Read-only here: focus blocks describe the user to the model, nothing edits them. */
 export const FocusTimeEntity = (): EntityModule<FocusTime> => resolve<FocusTime>('FocusTime')
+
+/**
+ * Every row a query matches. Use this, not `filter`, for any list the user sees:
+ * `filter` alone returns 50 rows (see `allPages`).
+ */
+export const filterAll = <T extends { readonly id: string }>(
+  entity: EntityModule<T>,
+  query: Record<string, unknown>,
+  sort = '-created_date',
+): Promise<T[]> => allPages((limit, skip) => entity.filter(query, sort, limit, skip))

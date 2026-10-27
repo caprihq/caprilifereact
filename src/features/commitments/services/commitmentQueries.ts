@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { CommitmentEntity, base44, queryKeys } from '@/services/api'
+import { CommitmentEntity, base44, filterAll, queryKeys } from '@/services/api'
 import { QUERY_DEFAULTS } from '@/config'
 import type { CalendarEvent, Commitment } from '@/types/entities'
 
@@ -16,7 +16,7 @@ export const useCommitments = (userEmail: string | null) =>
     queryKey: queryKeys.commitments(userEmail),
     enabled: !!userEmail,
     queryFn: async (): Promise<readonly Commitment[]> =>
-      CommitmentEntity().filter({ created_by: userEmail }),
+      filterAll(CommitmentEntity(), { created_by: userEmail }),
   })
 
 /**

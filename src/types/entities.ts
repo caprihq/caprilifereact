@@ -85,6 +85,8 @@ export type CalendarEvent = {
   readonly allDay: boolean
   /** The backend sends `event.location || null`, so null is expected. */
   readonly location?: string | null
+  /** Marked "free" in Google Calendar: it does not block time. */
+  readonly free?: boolean
 }
 
 /** base44/entities/Commitment.jsonc */

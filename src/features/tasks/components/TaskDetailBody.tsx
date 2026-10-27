@@ -25,6 +25,7 @@ import { ReasonNote } from './ReasonNote'
 import { SubtasksSection } from './SubtasksSection'
 import { TaskDetailActions } from './TaskDetailActions'
 import { TaskFieldsForm } from './TaskFieldsForm'
+import { scheduleChanged } from '../logic/scheduleChanged'
 
 /**
  * The task detail form, given a task that definitely exists.
@@ -47,9 +48,10 @@ export const TaskDetailBody = ({ task, userEmail }: TaskDetailBodyProps) => {
   const navigation = useNavigation<AppNavigation>()
   const { show } = useFeedback()
   const { hasAccess } = usePlan()
-  const { updateTask, deleteTask, completeTask } = useTaskMutations({
+  const { updateTask, saveTask, removeTask, completeTask } = useTaskMutations({
     userEmail,
     onFeedback: show,
+    syncCalendar: hasAccess('calendar_sync'),
   })
   const subtasks = useSubtaskEditor(task, userEmail)
   const [confirmingComplete, setConfirmingComplete] = useState(false)
@@ -105,7 +107,8 @@ export const TaskDetailBody = ({ task, userEmail }: TaskDetailBodyProps) => {
         draft={editing}
         onChange={setDraft}
         onSave={() => {
-          updateTask.mutate({ id: task.id, data: toTaskPatch(editing) })
+          // A moved or resized block has to reach Google Calendar too.
+          saveTask({ id: task.id, data: toTaskPatch(editing) }, scheduleChanged(task, editing))
           navigation.goBack()
         }}
         saving={updateTask.isPending}
@@ -123,7 +126,7 @@ export const TaskDetailBody = ({ task, userEmail }: TaskDetailBodyProps) => {
           setConfirmingComplete(true)
         }}
         onDelete={() => {
-          deleteTask.mutate(task.id)
+          removeTask(task)
           navigation.goBack()
         }}
       />

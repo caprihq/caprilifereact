@@ -68,7 +68,8 @@ export type AppStackParamList = {
   /** The full task list, opened from Home's header. */
   AllTasks: undefined
   /** Review CAPRI's proposed times before any of them are written. */
-  AutoSchedule: undefined
+  /** With a task id: find a new time for that one task (an overlap fix). */
+  AutoSchedule: { readonly rescheduleTaskId?: string } | undefined
   Tabs: undefined
   AddTask: undefined
   TaskDetail: { taskId: string }
@@ -84,9 +85,11 @@ export type AppStackParamList = {
 
 /** Typed navigation for screens inside the signed-in stack. */
 export type AppNavigation = {
+  // `undefined extends …`: a route whose params are optional can be opened with or
+  // without them (AutoSchedule, opened plain or for one task).
   readonly navigate: <Route extends keyof AppStackParamList>(
-    ...args: AppStackParamList[Route] extends undefined
-      ? [screen: Route]
+    ...args: undefined extends AppStackParamList[Route]
+      ? [screen: Route, params?: AppStackParamList[Route]]
       : [screen: Route, params: AppStackParamList[Route]]
   ) => void
   readonly goBack: () => void

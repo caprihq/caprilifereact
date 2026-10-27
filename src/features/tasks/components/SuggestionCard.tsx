@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
+import Ionicons from 'react-native-vector-icons/Ionicons'
 
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import type { Suggestion } from '../hooks/useAutoSchedule'
+import { SuggestionTimeEditor } from './SuggestionTimeEditor'
 
 /**
  * One proposal: what, when, and why.
@@ -19,6 +22,10 @@ type SuggestionCardProps = {
   readonly onAccept: () => void
   readonly onSkip: () => void
   readonly onEdit: () => void
+  /** "Overlaps Team meeting · 2:00 PM – 3:00 PM" when this time clashes. */
+  readonly clash?: string | undefined
+  /** A start the person picked; the length stays as planned. */
+  readonly onRetime: (start: Date) => void
 }
 
 const WHEN: Intl.DateTimeFormatOptions = { weekday: 'short', hour: 'numeric', minute: '2-digit' }
@@ -36,8 +43,17 @@ const whenLabel = (suggestion: Suggestion, timeZone: string): string => {
   return `${from} – ${to}`
 }
 
-export const SuggestionCard = ({ suggestion, timeZone, onAccept, onSkip, onEdit }: SuggestionCardProps) => {
+export const SuggestionCard = ({
+  suggestion,
+  timeZone,
+  onAccept,
+  onSkip,
+  onEdit,
+  clash,
+  onRetime,
+}: SuggestionCardProps) => {
   const theme = useTheme()
+  const [editingTime, setEditingTime] = useState(false)
 
   return (
     <Card>
@@ -48,6 +64,14 @@ export const SuggestionCard = ({ suggestion, timeZone, onAccept, onSkip, onEdit 
         <Text variant="body" tone="accent">
           {whenLabel(suggestion, timeZone)}
         </Text>
+        {clash ? (
+          <Text variant="caption" tone="danger">
+            <Ionicons name="alert-circle" size={12} color={theme.colors.danger} /> {clash}
+          </Text>
+        ) : null}
+        {editingTime ? (
+          <SuggestionTimeEditor value={new Date(suggestion.suggested_time)} onChange={onRetime} />
+        ) : null}
         {suggestion.reason ? (
           <Text variant="body" tone="muted" numberOfLines={3}>
             {suggestion.reason}
@@ -74,22 +98,34 @@ export const SuggestionCard = ({ suggestion, timeZone, onAccept, onSkip, onEdit 
           reading — into a thin grey line beneath them. Same pattern as
           "Ask CAPRI again" on Home.
         */}
-        <Pressable
-          accessibilityRole="button"
-          onPress={onEdit}
-          hitSlop={theme.spacing.sm}
-          style={({ pressed }) => [{ paddingTop: theme.spacing.sm, opacity: pressed ? 0.6 : 1 }]}
-        >
-          <Text variant="label" tone="accent" align="center">
-            Edit details
-          </Text>
-        </Pressable>
+        <View style={[styles.links, { gap: theme.spacing.xl, paddingTop: theme.spacing.sm }]}>
+          <Link label={editingTime ? 'Done' : 'Change time'} onPress={() => setEditingTime((open) => !open)} />
+          <Link label="Edit details" onPress={onEdit} />
+        </View>
       </View>
     </Card>
+  )
+}
+
+/** A text action under the buttons: a third answer without a third 52pt button. */
+const Link = ({ label, onPress }: { readonly label: string; readonly onPress: () => void }) => {
+  const theme = useTheme()
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      hitSlop={theme.spacing.sm}
+      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+    >
+      <Text variant="label" tone="accent">
+        {label}
+      </Text>
+    </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row' },
   action: { flex: 1 },
+  links: { flexDirection: 'row', justifyContent: 'center' },
 })

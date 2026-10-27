@@ -8,6 +8,9 @@ import { schedulableTasks } from '../logic/timeSlots'
 import type { SlotKey } from '../logic/timeSlots'
 import { buildUnifiedDay } from '../logic/unifiedDay'
 import { useTaskMutations } from '../services/useTaskMutations'
+import { overlapLabel } from '../logic/overlaps'
+import { fromOverlap } from '../logic/clashItems'
+import { useTodayOverlaps } from './useTodayOverlaps'
 import type { TaskFeed } from './useTaskFeed'
 import {
   COMPLETION_CONFIRM_LABEL,
@@ -53,6 +56,20 @@ export const usePlannerDay = (feed: TaskFeed) => {
   )
 
   const timelineItems = timeline.items
+  const overlapState = useTodayOverlaps({
+    tasks: feed.allTasks,
+    timeline: timelineItems,
+    nowMs: feed.nowMs,
+    timeZone: feed.timeZone,
+  })
+  const { overlapFor } = overlapState
+  const overlapLabelFor = useCallback(
+    (taskId: string) => {
+      const overlap = overlapFor(taskId)
+      return overlap ? overlapLabel(overlap, feed.timeZone) : undefined
+    },
+    [overlapFor, feed.timeZone],
+  )
   const day = useMemo(() => {
     const plan = filterDailyPlannerTasks(feed.allTasks, when)
 
@@ -98,5 +115,8 @@ export const usePlannerDay = (feed: TaskFeed) => {
     completeTask: setPendingCompletion,
     removeFromDay,
     completionPrompt,
+    clashes: overlapState.overlaps.map((overlap) => fromOverlap(overlap, feed.timeZone)),
+    overlapLabelFor,
+    keepBoth: overlapState.keepBoth,
   }
 }

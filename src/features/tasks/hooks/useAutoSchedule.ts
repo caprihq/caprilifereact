@@ -7,6 +7,8 @@ import { friendlyMessage } from '@/utils'
 import type { Task } from '@/types/entities'
 import { emptyPlanNotice } from '../logic/autoScheduleNotice'
 import type { Unplaced } from '../logic/unplacedReason'
+import { retimed, withSuggestion } from '../logic/suggestionEdits'
+import type { Conflict, Occupied } from '../logic/suggestionEdits'
 
 /**
  * Smart auto-scheduling.
@@ -62,8 +64,28 @@ type AutoScheduleResponse = {
     readonly debug?: string
     readonly ai_status?: string
     readonly more_to_plan?: number
+    readonly conflicts?: readonly Conflict[]
+    readonly occupied?: readonly Occupied[]
   }
 }
+
+/** One task's new time, for an overlap fix: planned alone, without AI. */
+const invokeReschedule = async (taskId: string): Promise<AutoScheduleResponse> =>
+  (await base44.functions.invoke('autoScheduleTasks', { reschedule_task_id: taskId })) as AutoScheduleResponse
+
+/** The whole plan, or one task's new time. */
+const fetchPlan = async (rescheduleTaskId?: string): Promise<AutoScheduleResponse> =>
+  rescheduleTaskId
+    ? invokeReschedule(rescheduleTaskId)
+    : ((await base44.functions.invoke('autoScheduleTasks', { ai: true })) as AutoScheduleResponse)
+
+/** The lists in a response, each defaulting to empty. */
+const partsOf = (data: AutoScheduleResponse['data']) => ({
+  suggestions: data?.suggestions ?? [],
+  unplaced: data?.unplaced ?? [],
+  conflicts: data?.conflicts ?? [],
+  occupied: data?.occupied ?? [],
+})
 
 /** The plan's metadata, from whatever the backend sent. An older backend sends none. */
 const planMetaFrom = (data: AutoScheduleResponse['data']): PlanMeta => ({
@@ -91,22 +113,28 @@ export const useAutoSchedule = () => {
   const [suggestions, setSuggestions] = useState<readonly Suggestion[]>([])
   const [unplaced, setUnplaced] = useState<readonly Unplaced[]>([])
   const [meta, setMeta] = useState<PlanMeta>(NO_META)
+  const [conflicts, setConflicts] = useState<readonly Conflict[]>([])
+  const [occupied, setOccupied] = useState<readonly Occupied[]>([])
 
-  /** Ask for a plan. Returns what came back so the caller can present it. */
-  const run = useCallback(async (): Promise<readonly Suggestion[]> => {
+  /**
+   * Ask for a plan. Returns what came back so the caller can present it.
+   *
+   * With a task id it is an overlap fix: that one task, planned alone, without AI.
+   */
+  const run = useCallback(async (rescheduleTaskId?: string): Promise<readonly Suggestion[]> => {
     setRunning(true)
     try {
       // `ai: true` opts this build into AI planning. Older builds send nothing and
       // keep the faster rules planner until they are updated (see the backend's
       // rollout.ts).
-      const response = (await base44.functions.invoke('autoScheduleTasks', {
-        ai: true,
-      })) as AutoScheduleResponse
-
-      const next = response.data?.suggestions ?? []
+      const response = await fetchPlan(rescheduleTaskId)
+      const parts = partsOf(response.data)
+      const next = parts.suggestions
       setSuggestions(next)
-      setUnplaced(response.data?.unplaced ?? [])
+      setUnplaced(parts.unplaced)
       setMeta(planMetaFrom(response.data))
+      setConflicts(parts.conflicts)
+      setOccupied(parts.occupied)
       track({ name: 'auto_schedule_run', params: { suggested: next.length } })
 
       if (announcesEmptyPlan(response.data, next)) {
@@ -136,5 +164,27 @@ export const useAutoSchedule = () => {
     setSuggestions((current) => current.filter((entry) => entry.task_id !== taskId))
   }, [])
 
-  return { run, running, suggestions, unplaced, meta, dismiss }
+  /** "Find a new time" for a clash on this screen: the answer joins the list. */
+  const reschedule = useCallback(
+    async (taskId: string) => {
+      try {
+        const response = await invokeReschedule(taskId)
+        const [found] = response.data?.suggestions ?? []
+        setConflicts((current) => current.filter((c) => c.task_id !== taskId))
+        if (found) setSuggestions((current) => withSuggestion(current, found))
+        else setUnplaced((current) => [...(response.data?.unplaced ?? []), ...current])
+      } catch (error) {
+        reportError(error, 'autoScheduleTasks:reschedule')
+        show({ message: "Couldn't find a new time right now.", tone: 'error' })
+      }
+    },
+    [show],
+  )
+
+  /** A time the person picked themselves, keeping the suggestion's length. */
+  const retime = useCallback((taskId: string, start: Date) => {
+    setSuggestions((current) => current.map((s) => (s.task_id === taskId ? retimed(s, start) : s)))
+  }, [])
+
+  return { run, running, suggestions, unplaced, meta, dismiss, conflicts, occupied, reschedule, retime }
 }
