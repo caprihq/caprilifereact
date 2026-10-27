@@ -4,7 +4,9 @@ import Ionicons from 'react-native-vector-icons/Ionicons'
 import { Card } from '@/components/Card'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
+import { size } from '@/theme'
 import { CategoryIcon } from './CategoryIcon'
+import { CountPill, PlannerSectionHeader } from './PlannerSectionHeader'
 import { asideView } from '../logic/plannerLogic'
 import type { Task } from '@/types/entities'
 
@@ -38,25 +40,15 @@ export const PlannerAside = ({
   const theme = useTheme()
   if (tasks.length === 0) return null
 
-  const accent = tone === 'warning' ? theme.colors.warning : theme.colors.textMuted
-
   return (
-    <View style={{ gap: theme.spacing.sm }}>
-      <View style={[styles.header, { gap: theme.spacing.sm }]}>
-        <Ionicons
-          name={tone === 'warning' ? 'alert-circle-outline' : 'time-outline'}
-          size={18}
-          color={accent}
-        />
-        <Text variant="bodyStrong">{title}</Text>
-        <Text variant="caption" tone="muted">
-          {subtitle}
-        </Text>
-        <View style={styles.spacer} />
-        <Text variant="caption" tone="secondary">
-          {tasks.length}
-        </Text>
-      </View>
+    <View style={{ gap: theme.spacing.md }}>
+      <PlannerSectionHeader
+        icon={tone === 'warning' ? 'alert-circle-outline' : 'time-outline'}
+        title={title}
+        subtitle={subtitle}
+        tone={tone}
+        trailing={<CountPill label={String(tasks.length)} />}
+      />
 
       <Card flush>
         {shown.map((task, index) => (
@@ -110,8 +102,6 @@ export const PlannerAside = ({
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center' },
-  spacer: { flex: 1 },
-  row: { flexDirection: 'row', alignItems: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', minHeight: size.control + 4 },
   title: { flex: 1 },
 })

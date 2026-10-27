@@ -115,7 +115,9 @@ export const PlannerScreen = () => {
       contentContainerStyle={[
         wash,
         styles.page,
-        { gap: theme.spacing.xl, paddingBottom: contentBottom },
+        // A full step between blocks, so each header reads as a divider and not as
+        // the last row of the block above it.
+        { gap: theme.spacing.xxl, paddingBottom: contentBottom },
       ]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
@@ -134,7 +136,7 @@ export const PlannerScreen = () => {
       <PlannerAllDay items={planner.day.allDay} />
 
       {planner.day.blocks.map(({ slot, rows }) => (
-        <View key={slot.key} style={{ gap: theme.spacing.sm }}>
+        <View key={slot.key} style={{ gap: theme.spacing.md }}>
           <PlannerSlot
             slot={slot}
             rows={rows}

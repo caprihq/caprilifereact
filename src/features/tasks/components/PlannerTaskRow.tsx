@@ -5,6 +5,7 @@ import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import { CategoryIcon } from './CategoryIcon'
 import type { AppTheme } from '@/theme'
+import { size } from '@/theme'
 import type { Task } from '@/types/entities'
 import { bandFor, durationLabel } from '../logic/taskPresentation'
 import { anchorOf } from '../logic/timeSlots'
@@ -65,14 +66,15 @@ export const PlannerTaskRow = ({
       accessibilityRole="button"
       accessibilityLabel={task.title}
       onPress={onOpen}
+      // No fill or corner of its own: the block's card provides the surface, and a
+      // row that painted its own would square off the card's rounded corners.
       style={({ pressed }) => [
         styles.row,
         {
-          backgroundColor: theme.colors.surface,
-          borderRadius: theme.radius.lg,
-          padding: theme.spacing.md,
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
           gap: theme.spacing.md,
-          opacity: done ? 0.5 : pressed ? 0.85 : 1,
+          opacity: done ? 0.5 : pressed ? 0.6 : 1,
         },
       ]}
     >
@@ -121,7 +123,7 @@ export const PlannerTaskRow = ({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', minHeight: size.control + 4 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   body: { flex: 1 },
   struck: { textDecorationLine: 'line-through' },

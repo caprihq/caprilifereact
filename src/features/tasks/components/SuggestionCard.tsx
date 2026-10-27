@@ -28,7 +28,11 @@ type SuggestionCardProps = {
   readonly onRetime: (start: Date) => void
 }
 
-const WHEN: Intl.DateTimeFormatOptions = { weekday: 'short', hour: 'numeric', minute: '2-digit' }
+const WHEN: Intl.DateTimeFormatOptions = {
+  weekday: 'short',
+  hour: 'numeric',
+  minute: '2-digit',
+}
 
 /** "Tue 7:00 PM – 8:30 PM", or just the start when the end is missing or unreadable. */
 const whenLabel = (suggestion: Suggestion, timeZone: string): string => {
@@ -57,66 +61,123 @@ export const SuggestionCard = ({
 
   return (
     <Card>
-      <View style={{ gap: theme.spacing.xs }}>
-        <Text variant="bodyStrong" numberOfLines={2}>
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="heading" numberOfLines={2}>
           {suggestion.task?.title ?? 'Task'}
         </Text>
-        <Text variant="body" tone="accent">
-          {whenLabel(suggestion, timeZone)}
-        </Text>
+
+        <View style={[styles.when, { gap: theme.spacing.sm }]}>
+          <Ionicons name="time-outline" size={16} color={theme.colors.accentInk} />
+          <Text variant="bodyStrong" tone="accent">
+            {whenLabel(suggestion, timeZone)}
+          </Text>
+        </View>
+
         {clash ? (
           <Text variant="caption" tone="danger">
             <Ionicons name="alert-circle" size={12} color={theme.colors.danger} /> {clash}
           </Text>
         ) : null}
         {editingTime ? (
-          <SuggestionTimeEditor value={new Date(suggestion.suggested_time)} onChange={onRetime} />
+          <SuggestionTimeEditor
+            value={new Date(suggestion.suggested_time)}
+            onChange={onRetime}
+          />
         ) : null}
         {suggestion.reason ? (
-          <Text variant="body" tone="muted" numberOfLines={3}>
+          <Text variant="body" tone="secondary" numberOfLines={3}>
             {suggestion.reason}
           </Text>
         ) : null}
 
-        <View style={[styles.actions, { gap: theme.spacing.sm, marginTop: theme.spacing.sm }]}>
-          <View style={styles.action}>
-            <Button label="Schedule it" onPress={onAccept} />
-          </View>
-          <View style={styles.action}>
-            <Button label="Skip" variant="ghost" onPress={onSkip} />
-          </View>
-        </View>
-
-        {/*
-          A third answer, because accept-or-skip is not the only one a person has:
-          disagreeing with the time left nowhere to go but dismissing the suggestion
-          and starting again from the planner. This opens the task itself, where the
-          duration, the day and the event switch live.
-
-          A link rather than a third full-height button. Three 52pt controls made the
-          buttons most of the card and pushed CAPRI's reasoning — the part worth
-          reading — into a thin grey line beneath them. Same pattern as
-          "Ask CAPRI again" on Home.
-        */}
-        <View style={[styles.links, { gap: theme.spacing.xl, paddingTop: theme.spacing.sm }]}>
-          <Link label={editingTime ? 'Done' : 'Change time'} onPress={() => setEditingTime((open) => !open)} />
-          <Link label="Edit details" onPress={onEdit} />
-        </View>
+        <SuggestionActions
+          editingTime={editingTime}
+          onAccept={onAccept}
+          onSkip={onSkip}
+          onEdit={onEdit}
+          onToggleTime={() => setEditingTime((open) => !open)}
+        />
       </View>
     </Card>
   )
 }
 
-/** A text action under the buttons: a third answer without a third 52pt button. */
-const Link = ({ label, onPress }: { readonly label: string; readonly onPress: () => void }) => {
+/**
+ * The answers to a proposal: take it, leave it, or adjust it.
+ *
+ * Accept is the focal action and the wider of the pair; Skip is a filled secondary
+ * so the two read as one control strip rather than a button beside a bare word.
+ * Below a hairline sit the two adjustments as icon links — a third answer without a
+ * third 56pt button, which would have made the buttons most of the card and pushed
+ * CAPRI's reasoning into a thin grey line beneath them. Same pattern as "Ask CAPRI
+ * again" on Home. "Change time" opens the picker in place; "Edit details" opens the
+ * task itself, where the duration, the day and the event switch live.
+ */
+const SuggestionActions = ({
+  editingTime,
+  onAccept,
+  onSkip,
+  onEdit,
+  onToggleTime,
+}: {
+  readonly editingTime: boolean
+  readonly onAccept: () => void
+  readonly onSkip: () => void
+  readonly onEdit: () => void
+  readonly onToggleTime: () => void
+}) => {
+  const theme = useTheme()
+  return (
+    <View style={{ gap: theme.spacing.md, marginTop: theme.spacing.sm }}>
+      <View style={[styles.actions, { gap: theme.spacing.sm }]}>
+        <View style={styles.accept}>
+          <Button label="Schedule it" onPress={onAccept} />
+        </View>
+        <View style={styles.skip}>
+          <Button label="Skip" variant="secondary" onPress={onSkip} />
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.links,
+          { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border },
+        ]}
+      >
+        <Link
+          icon={editingTime ? 'checkmark' : 'time-outline'}
+          label={editingTime ? 'Done' : 'Change time'}
+          onPress={onToggleTime}
+        />
+        <View style={[styles.rule, { backgroundColor: theme.colors.border }]} />
+        <Link icon="create-outline" label="Edit details" onPress={onEdit} />
+      </View>
+    </View>
+  )
+}
+
+/** A text action under the buttons, with a glyph so the two read as a pair of tools. */
+const Link = ({
+  icon,
+  label,
+  onPress,
+}: {
+  readonly icon: string
+  readonly label: string
+  readonly onPress: () => void
+}) => {
   const theme = useTheme()
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
-      hitSlop={theme.spacing.sm}
-      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+      style={({ pressed }) => [
+        styles.link,
+        { gap: theme.spacing.xs + 2, paddingTop: theme.spacing.md, opacity: pressed ? 0.6 : 1 },
+      ]}
     >
+      <Ionicons name={icon} size={16} color={theme.colors.accentInk} />
       <Text variant="label" tone="accent">
         {label}
       </Text>
@@ -125,7 +186,12 @@ const Link = ({ label, onPress }: { readonly label: string; readonly onPress: ()
 }
 
 const styles = StyleSheet.create({
+  when: { flexDirection: 'row', alignItems: 'center' },
   actions: { flexDirection: 'row' },
-  action: { flex: 1 },
-  links: { flexDirection: 'row', justifyContent: 'center' },
+  accept: { flex: 3 },
+  skip: { flex: 2 },
+  links: { flexDirection: 'row', alignItems: 'stretch' },
+  link: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  /** A short vertical hairline between the two links. */
+  rule: { width: StyleSheet.hairlineWidth, marginTop: 12 },
 })
