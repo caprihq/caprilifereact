@@ -146,7 +146,6 @@ export const useUpNext = (request: UpNextRequest) => {
       const recommended = await recommendTasks({
         tasks: candidates,
         userEmail,
-        nowMs,
         contextSummary,
       })
       setLoading(false)
