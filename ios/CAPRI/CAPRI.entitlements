@@ -22,18 +22,10 @@
 	<array>
 		<string>$(AppIdentifierPrefix)com.base69aa4c4d4f33993320ae7f08.app.shared</string>
 	</array>
-	<!-- NO associated domain, deliberately.
-
-	     An applinks entry for capriforlifev1.base44.app was here so the password-reset
-	     email would open the app. Base44's apple-app-site-association claims
-	     `paths: ["*"]` for this bundle id and cannot be narrowed from our side, so
-	     the entitlement made EVERY https link on that host a Universal Link — including
-	     `/api/external-auth/callback`, where Google sends the user back after the
-	     calendar consent screen. iOS handed that redirect to the app instead of
-	     loading it, Base44 never received the authorization code, and "Connect
-	     Google Calendar" spun forever. The reset email now opens the web client's
-	     own /reset-password page, which works. Android keeps its App Link because
-	     the manifest can limit it to that one path. -->
+	<!-- No associated domain, deliberately. Base44's apple-app-site-association
+	     claims every path on capriforlifev1.base44.app, so an applinks entry also
+	     captured Google's OAuth callback (/api/external-auth/callback) and broke the
+	     calendar connection. The reset email opens the web client instead. -->
 	<key>aps-environment</key>
 	<string>development</string>
 </dict>

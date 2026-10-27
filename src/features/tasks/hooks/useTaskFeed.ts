@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { useNow } from '@/hooks/useNow'
 
@@ -7,7 +8,7 @@ import { rankTasks } from '@/features/tasks/logic/capriScoring'
 import { filterTodayPlanTasks } from '@/features/tasks/logic/plannerLogic'
 import { isActiveTask } from '@/features/tasks/logic/taskFilters'
 import type { Task } from '@/types/entities'
-import { useCurrentUser } from '@/services/api'
+import { queryKeys, useCurrentUser } from '@/services/api'
 import { useTasks } from '../services/taskQueries'
 
 /**
@@ -72,6 +73,7 @@ export type TaskFeed = {
 }
 
 export const useTaskFeed = (): TaskFeed => {
+  const queryClient = useQueryClient()
   const { data: user } = useCurrentUser()
   const userEmail = user?.email ?? null
   const tasksQuery = useTasks(userEmail)
@@ -107,8 +109,14 @@ export const useTaskFeed = (): TaskFeed => {
       isLoading: tasksQuery.isLoading,
       isError: tasksQuery.isError && tasksQuery.data === undefined,
       isShowingSaved: tasksQuery.isError && tasksQuery.data !== undefined,
+      // Tasks plus the calendar and commitments around them. Disabled queries
+      // (free plan) are skipped by refetchQueries.
       refetch: async () => {
-        await tasksQuery.refetch()
+        await Promise.all([
+          tasksQuery.refetch(),
+          queryClient.refetchQueries({ queryKey: queryKeys.calendarEvents() }),
+          queryClient.refetchQueries({ queryKey: queryKeys.commitments(userEmail) }),
+        ])
       },
       userEmail,
       timeZone,
@@ -120,5 +128,5 @@ export const useTaskFeed = (): TaskFeed => {
       todayTasks: [...todayTasks, ...recommendedExtra],
       nowMs,
     }
-  }, [tasks, user?.timezone, userEmail, tasksQuery, nowMs])
+  }, [tasks, user?.timezone, userEmail, tasksQuery, nowMs, queryClient])
 }

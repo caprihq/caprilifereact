@@ -20,11 +20,9 @@ import type { RootStackParamList } from './types'
  * route table, one set of rules about what a link means, rather than a bespoke
  * navigation path per surface.
  *
- * The https prefix is for Android only. Its App Link is limited to `/reset-password`
- * in the manifest. iOS has no associated domain: Base44's association file claims
- * `paths: ["*"]`, which turned Google's calendar OAuth callback on this host into a
- * Universal Link and broke the connection — see CAPRI.entitlements. On iOS the
- * reset email opens the web client instead.
+ * The https prefix serves Android's App Link for `/reset-password` only. iOS has no
+ * associated domain (see CAPRI.entitlements), so there the reset email opens the web
+ * client instead.
  *
  * A task link only resolves while signed in — the App stack does not exist
  * otherwise, and React Navigation quietly drops it. That is the correct outcome for

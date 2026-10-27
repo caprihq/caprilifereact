@@ -206,11 +206,8 @@ describe('the password-reset deep link', () => {
   })
 
   it('does NOT declare the domain on iOS', () => {
-    // iOS cannot claim one path: the association file Base44 serves says
-    // `paths: ["*"]`, so the entitlement claims the whole host — including
-    // `/api/external-auth/callback`, where Google sends the user after the calendar
-    // consent screen. iOS then opened the app with that URL instead of loading it,
-    // Base44 never received the code, and "Connect Google Calendar" hung forever.
+    // Base44's association file claims every path, so an applinks entitlement would
+    // also capture Google's OAuth callback and break the calendar connection.
     const host = new URL(base44Config.appBaseUrl).host
     for (const file of [
       'ios/CAPRI/CAPRI.entitlements',

@@ -70,8 +70,6 @@ export const closeWhenConnected = (): (() => void) => {
     void checkCalendarConnection()
       .then((state) => {
         if (stopped) return
-        // Every answer, so a sheet that never closes shows *which* state kept it open.
-        diag('calendar.watch', { state, baseline })
         if (baseline === null) {
           baseline = state
           return

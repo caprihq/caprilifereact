@@ -5,14 +5,10 @@ import { authErrorMessage } from '../logic/authErrors'
 /**
  * Password operations: request a reset email, and change a password while signed in.
  *
- * Completing a reset is here again. It was dropped on the belief that the token
- * could never reach the app — the email links to `capriforlifev1.base44.app`, which
- * looked unclaimable. On Android it is not: Base44 serves
- * `/.well-known/assetlinks.json` for this bundle id, and the manifest claims just
- * `/reset-password`, so the app receives the token directly. iOS claims nothing on
- * that host (its association file covers every path, which broke the calendar
- * OAuth callback), so there the email opens the web client's reset page and this
- * screen is reached only by `capri://reset-password`. See `navigation/linking.ts`.
+ * The reset email links to `capriforlifev1.base44.app`. Android claims just
+ * `/reset-password` as an App Link, so the token reaches the app directly. iOS claims
+ * nothing on that host (see CAPRI.entitlements), so there the email opens the web
+ * client's reset page. See `navigation/linking.ts`.
  *
  * Split from `emailAuth.ts`, which was already seven functions and close to the
  * 200-line limit (§3.2).

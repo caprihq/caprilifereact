@@ -16,5 +16,6 @@ export const QUERY_DEFAULTS = {
   retry: 2,
   staleTime: 30_000,
   userStaleTime: 60_000,
-  calendarStaleTime: 5 * 60_000,
+  /** Was 5 min; a meeting just added on Google should show on the next return. */
+  calendarStaleTime: 30_000,
 } as const
