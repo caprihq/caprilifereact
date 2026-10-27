@@ -7,18 +7,19 @@ import { authErrorMessage } from '../logic/authErrors'
  *
  * Completing a reset is here again. It was dropped on the belief that the token
  * could never reach the app — the email links to `capriforlifev1.base44.app`, which
- * looked unclaimable. It is not: Base44 already serves
- * `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association` for
- * this exact bundle id, so the app can claim those links and receive the token
- * directly. See `navigation/linking.ts`.
+ * looked unclaimable. On Android it is not: Base44 serves
+ * `/.well-known/assetlinks.json` for this bundle id, and the manifest claims just
+ * `/reset-password`, so the app receives the token directly. iOS claims nothing on
+ * that host (its association file covers every path, which broke the calendar
+ * OAuth callback), so there the email opens the web client's reset page and this
+ * screen is reached only by `capri://reset-password`. See `navigation/linking.ts`.
  *
  * Split from `emailAuth.ts`, which was already seven functions and close to the
  * 200-line limit (§3.2).
  */
 
 export type PasswordResult =
-  | { readonly kind: 'ok' }
-  | { readonly kind: 'error'; readonly message: string }
+  { readonly kind: 'ok' } | { readonly kind: 'error'; readonly message: string }
 
 /**
  * Ask Base44 to email a reset link.
@@ -39,7 +40,10 @@ export type PasswordResult =
  */
 export const requestPasswordReset = async (email: string): Promise<PasswordResult> => {
   diag('password:requestReset:start', { email })
-  wire('resetPasswordRequest REQUEST', { endpoint: 'auth.resetPasswordRequest', body: { email } })
+  wire('resetPasswordRequest REQUEST', {
+    endpoint: 'auth.resetPasswordRequest',
+    body: { email },
+  })
   try {
     const response: unknown = await base44.auth.resetPasswordRequest(email)
     // Whether Base44 says it sent a link, and what it calls the token, decides
@@ -75,7 +79,10 @@ export const completePasswordReset = async (
   newPassword: string,
 ): Promise<PasswordResult> => {
   diag('password:completeReset:start', { tokenLength: resetToken.length })
-  wire('resetPassword REQUEST', { endpoint: 'auth.resetPassword', body: { resetToken, newPassword } })
+  wire('resetPassword REQUEST', {
+    endpoint: 'auth.resetPassword',
+    body: { resetToken, newPassword },
+  })
   try {
     const response: unknown = await base44.auth.resetPassword({ resetToken, newPassword })
     wire('resetPassword RESPONSE', response)
@@ -127,6 +134,9 @@ export const changePassword = async (
     if (status === 401 || status === 403) {
       return { kind: 'error', message: 'That current password is not correct.' }
     }
-    return { kind: 'error', message: authErrorMessage(error, 'Could not change your password.') }
+    return {
+      kind: 'error',
+      message: authErrorMessage(error, 'Could not change your password.'),
+    }
   }
 }

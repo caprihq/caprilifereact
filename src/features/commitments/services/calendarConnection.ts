@@ -70,6 +70,8 @@ export const closeWhenConnected = (): (() => void) => {
     void checkCalendarConnection()
       .then((state) => {
         if (stopped) return
+        // Every answer, so a sheet that never closes shows *which* state kept it open.
+        diag('calendar.watch', { state, baseline })
         if (baseline === null) {
           baseline = state
           return
@@ -94,7 +96,10 @@ export const connectCalendar = async (): Promise<ConnectOutcome> => {
   try {
     const url: unknown = await base44.connectors.connectAppUser(GOOGLE_CALENDAR_CONNECTOR_ID)
     if (typeof url !== 'string' || !url) {
-      return { kind: 'failed', message: "Couldn't start the calendar connection. Please try again." }
+      return {
+        kind: 'failed',
+        message: "Couldn't start the calendar connection. Please try again.",
+      }
     }
 
     // Shows the client_id, redirect_uri and scopes Base44 actually sends to Google.

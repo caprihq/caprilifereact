@@ -4,7 +4,11 @@ import type { LinkingOptions } from '@react-navigation/native'
 
 import { base44Config } from '@/config'
 import { diagUrl } from '@/utils'
-import { HOME_LINK_PATH, TASK_LINK_PATH, normalizeLinkPath } from '../../modules/capri-deep-link/constants'
+import {
+  HOME_LINK_PATH,
+  TASK_LINK_PATH,
+  normalizeLinkPath,
+} from '../../modules/capri-deep-link/constants'
 import { takePendingLink } from '../../modules/capri-deep-link'
 import type { RootStackParamList } from './types'
 
@@ -16,9 +20,11 @@ import type { RootStackParamList } from './types'
  * route table, one set of rules about what a link means, rather than a bespoke
  * navigation path per surface.
  *
- * Base44 serves `apple-app-site-association` with `paths: ["*"]` for this bundle id,
- * so `https://capriforlifev1.base44.app/task/<id>` already reaches the app with no
- * change on the server.
+ * The https prefix is for Android only. Its App Link is limited to `/reset-password`
+ * in the manifest. iOS has no associated domain: Base44's association file claims
+ * `paths: ["*"]`, which turned Google's calendar OAuth callback on this host into a
+ * Universal Link and broke the connection — see CAPRI.entitlements. On iOS the
+ * reset email opens the web client instead.
  *
  * A task link only resolves while signed in — the App stack does not exist
  * otherwise, and React Navigation quietly drops it. That is the correct outcome for

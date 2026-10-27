@@ -196,13 +196,27 @@ describe('the password-reset deep link', () => {
     expect(appDelegate).toContain('continue userActivity: NSUserActivity')
   })
 
-  it('declares the domain on both platforms, matching the backend host', () => {
+  it('declares the domain on Android, matching the backend host', () => {
     const host = new URL(base44Config.appBaseUrl).host
 
     expect(read('android/app/src/main/AndroidManifest.xml')).toContain(`android:host="${host}"`)
-    expect(read('android/app/src/main/AndroidManifest.xml')).toContain('android:autoVerify="true"')
-    for (const file of ['ios/CAPRI/CAPRI.entitlements', 'ios/CAPRI/CAPRIRelease.entitlements']) {
-      expect(read(file)).toContain(`applinks:${host}`)
+    expect(read('android/app/src/main/AndroidManifest.xml')).toContain(
+      'android:autoVerify="true"',
+    )
+  })
+
+  it('does NOT declare the domain on iOS', () => {
+    // iOS cannot claim one path: the association file Base44 serves says
+    // `paths: ["*"]`, so the entitlement claims the whole host — including
+    // `/api/external-auth/callback`, where Google sends the user after the calendar
+    // consent screen. iOS then opened the app with that URL instead of loading it,
+    // Base44 never received the code, and "Connect Google Calendar" hung forever.
+    const host = new URL(base44Config.appBaseUrl).host
+    for (const file of [
+      'ios/CAPRI/CAPRI.entitlements',
+      'ios/CAPRI/CAPRIRelease.entitlements',
+    ]) {
+      expect(read(file)).not.toContain(`applinks:${host}`)
     }
   })
 })
@@ -273,7 +287,9 @@ describe('the app icon is the shipped one, on both platforms', () => {
       expect(readFileSync(android(density, 'ic_launcher.png')).length).toBeGreaterThan(0)
       expect(readFileSync(android(density, 'ic_launcher_round.png')).length).toBeGreaterThan(0)
       // The adaptive layer, without which Android 8+ masks the artwork itself.
-      expect(readFileSync(android(density, 'ic_launcher_foreground.png')).length).toBeGreaterThan(0)
+      expect(
+        readFileSync(android(density, 'ic_launcher_foreground.png')).length,
+      ).toBeGreaterThan(0)
     }
   })
 
@@ -282,7 +298,9 @@ describe('the app icon is the shipped one, on both platforms', () => {
     expect(adaptive).toContain('@color/ic_launcher_background')
     expect(adaptive).toContain('@mipmap/ic_launcher_foreground')
     // Sampled from the shipped art; a mismatch shows as a ring around the mark.
-    expect(read('android/app/src/main/res/values/ic_launcher_background.xml')).toContain('#1A2535')
+    expect(read('android/app/src/main/res/values/ic_launcher_background.xml')).toContain(
+      '#1A2535',
+    )
   })
 })
 
@@ -301,7 +319,9 @@ describe('shipping as the next version of the live app', () => {
 
   /** Every build config has to carry the same number, or one target ships stale. */
   const iosBuildNumbers = (): readonly number[] =>
-    [...project().matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map((match) => Number(match[1]))
+    [...project().matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map((match) =>
+      Number(match[1]),
+    )
 
   const androidVersionCode = (): number =>
     Number(/\n\s*versionCode (\d+)/.exec(read('android/app/build.gradle'))?.[1])

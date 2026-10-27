@@ -22,15 +22,18 @@
 	<array>
 		<string>$(AppIdentifierPrefix)com.base69aa4c4d4f33993320ae7f08.app.shared</string>
 	</array>
-	<!-- Universal Links. Base44 serves
-	     /.well-known/apple-app-site-association for this bundle id, so links to the
-	     web client can open the app instead of Safari — which is how a password-reset
-	     email finishes inside CAPRI. Only the reset path is routed; see
-	     navigation/linking.ts. -->
-	<key>com.apple.developer.associated-domains</key>
-	<array>
-		<string>applinks:capriforlifev1.base44.app</string>
-	</array>
+	<!-- NO associated domain, deliberately.
+
+	     An applinks entry for capriforlifev1.base44.app was here so the password-reset
+	     email would open the app. Base44's apple-app-site-association claims
+	     `paths: ["*"]` for this bundle id and cannot be narrowed from our side, so
+	     the entitlement made EVERY https link on that host a Universal Link — including
+	     `/api/external-auth/callback`, where Google sends the user back after the
+	     calendar consent screen. iOS handed that redirect to the app instead of
+	     loading it, Base44 never received the authorization code, and "Connect
+	     Google Calendar" spun forever. The reset email now opens the web client's
+	     own /reset-password page, which works. Android keeps its App Link because
+	     the manifest can limit it to that one path. -->
 	<key>aps-environment</key>
 	<string>development</string>
 </dict>
