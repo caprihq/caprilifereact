@@ -303,14 +303,16 @@ describe('the app icon is the shipped one, on both platforms', () => {
 
 describe('shipping as the next version of the live app', () => {
   /**
-   * This app replaces the Capacitor build in the same App Store record rather than
+   * This app replaced the Capacitor build in the same App Store record rather than
    * arriving as a new listing — same bundle id, same team, same subscription
-   * products, so existing accounts and entitlements carry over. What makes it an
-   * *update* rather than a rejected upload is being numerically ahead of what is
-   * live: 2.117896.7, build 16.
+   * products, so existing accounts and entitlements carried over. Apple takes an
+   * upload only when its version is ahead of the approved one: once a version is
+   * live, its train is closed and another build of it is rejected.
    */
   const project = () => read('ios/CAPRI.xcodeproj/project.pbxproj')
 
+  /** The version live on the App Store. Raise it when a release goes out. */
+  const LIVE_VERSION = '3.0.0'
   /** The last build of the Capacitor app on the App Store. */
   const LIVE_BUILD = 16
 
@@ -319,6 +321,21 @@ describe('shipping as the next version of the live app', () => {
     [...project().matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map((match) =>
       Number(match[1]),
     )
+
+  /** The app and the widget both read these; a mismatch is flagged on upload. */
+  const iosVersions = (): readonly string[] =>
+    [...project().matchAll(/MARKETING_VERSION = ([\d.]+);/g)].map((match) => match[1] ?? '')
+
+  /** Compared part by part, as Apple does: 3.10.0 is ahead of 3.9.0. */
+  const isAhead = (version: string, than: string): boolean => {
+    const ours = version.split('.').map(Number)
+    const theirs = than.split('.').map(Number)
+    for (let index = 0; index < Math.max(ours.length, theirs.length); index++) {
+      const difference = (ours[index] ?? 0) - (theirs[index] ?? 0)
+      if (difference !== 0) return difference > 0
+    }
+    return false
+  }
 
   const androidVersionCode = (): number =>
     Number(/\n\s*versionCode (\d+)/.exec(read('android/app/build.gradle'))?.[1])
@@ -330,7 +347,8 @@ describe('shipping as the next version of the live app', () => {
    * guard.
    */
   it('outranks the build already on the App Store', () => {
-    expect(project()).toContain('MARKETING_VERSION = 3.0.0;')
+    expect(iosVersions().length).toBeGreaterThan(0)
+    for (const version of iosVersions()) expect(isAhead(version, LIVE_VERSION)).toBe(true)
     expect(iosBuildNumbers().length).toBeGreaterThan(0)
     for (const build of iosBuildNumbers()) expect(build).toBeGreaterThan(LIVE_BUILD)
 
@@ -339,12 +357,22 @@ describe('shipping as the next version of the live app', () => {
     expect(project()).not.toContain('CURRENT_PROJECT_VERSION = 1;')
   })
 
-  it('uses one build number across every iOS configuration', () => {
+  it('uses one version and one build number across every iOS configuration', () => {
+    expect(new Set(iosVersions()).size).toBe(1)
     expect(new Set(iosBuildNumbers()).size).toBe(1)
   })
 
+  it('compares versions part by part', () => {
+    expect(isAhead('3.1.0', '3.0.0')).toBe(true)
+    expect(isAhead('3.10.0', '3.9.0')).toBe(true)
+    expect(isAhead('3.0.0', '3.0.0')).toBe(false)
+    expect(isAhead('2.117896.7', '3.0.0')).toBe(false)
+  })
+
   it('keeps Android in step, so the two cannot drift apart', () => {
-    expect(read('android/app/build.gradle')).toContain('versionName "3.0.0"')
+    expect(read('android/app/build.gradle')).toContain(
+      `versionName "${iosVersions()[0] ?? ''}"`,
+    )
     expect(androidVersionCode()).toBe(iosBuildNumbers()[0])
   })
 

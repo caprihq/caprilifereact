@@ -106,7 +106,7 @@ android {
         // build, check its live versionCode first: it must be higher there too,
         // and Play's counter is independent of this one.
         versionCode 34
-        versionName "3.0.0"
+        versionName "3.1.0"
     }
     signingConfigs {
         debug {
