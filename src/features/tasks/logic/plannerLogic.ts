@@ -1,5 +1,6 @@
 import { isLocalPast, isLocalToday } from '@/utils/localDate'
 import type { Task } from '@/types/entities'
+import { plannedStartMs } from './statedTime'
 
 /**
  * Planning rules — native port of web/src/lib/plannerLogic.js.
@@ -16,55 +17,51 @@ import type { Task } from '@/types/entities'
 
 const isActive = (task: Task): boolean => (task.status ?? 'pending') === 'pending'
 
-export type TodayPlan = {
-  /** Anchored to today — scheduled or due. Sorted by time. */
-  readonly todayTasks: readonly Task[]
-  /** The recommended task, when it has no today anchor of its own. */
-  readonly recommendedExtra: readonly Task[]
+/** Today, in the user's zone, for a planned start that may be missing. */
+const isTodayMs = (ms: number | null, nowMs: number, timeZone: string): boolean =>
+  ms !== null && isLocalToday(new Date(ms).toISOString(), nowMs, timeZone)
+
+/** Booked for a later day: planned, so neither due work nor carried over. */
+const isBookedAhead = (task: Task, nowMs: number, timeZone: string): boolean => {
+  const booked = task.scheduled_start_time ? new Date(task.scheduled_start_time).getTime() : NaN
+  return !Number.isNaN(booked) && booked > nowMs && !isTodayMs(booked, nowMs, timeZone)
 }
 
 /**
- * TODAY'S PLAN (Home) — curated and deliberately narrow.
+ * TODAY'S PLAN (Home) — the tasks with a time today.
  *
- * Included: scheduled today · due today · the recommended task.
- * Excluded: future work and overdue carryover, which live in the full planner.
+ * A booked time, or a time written in the title or notes ("Dinner, 7 PM"), on
+ * today's date. Scheduled events are not here: they arrive with the calendar and
+ * commitments through the timeline, which Home merges with these.
+ *
+ * Deliberately narrow. It used to add every task merely *due* today, plus CAPRI's top
+ * pick wherever it sat, and showed each beside whatever clock time its record carried
+ * — so an overdue task appeared at "1:00 PM" from an earlier day while the planner
+ * listed it as carried over. What is due but not planned belongs to Start Here and Up
+ * Next; Today's Plan is what the day already holds.
  */
 export const filterTodayPlanTasks = (
   tasks: readonly Task[],
-  options: {
-    readonly nowMs: number
-    readonly timeZone: string
-    readonly recommendedTaskId?: string | null
-  },
-): TodayPlan => {
-  const { nowMs, timeZone, recommendedTaskId } = options
-  const todayTasks: Task[] = []
-  const recommendedExtra: Task[] = []
+  options: { readonly nowMs: number; readonly timeZone: string },
+): readonly Task[] => {
+  const { nowMs, timeZone } = options
+  const startOf = (task: Task) => plannedStartMs(task, timeZone) ?? Number.MAX_SAFE_INTEGER
 
-  for (const task of tasks) {
-    if (!isActive(task)) continue
-
-    if (
-      isLocalToday(task.scheduled_start_time, nowMs, timeZone) ||
-      isLocalToday(task.due_date, nowMs, timeZone)
-    ) {
-      todayTasks.push(task)
-    } else if (recommendedTaskId && task.id === recommendedTaskId) {
-      recommendedExtra.push(task)
-    }
-  }
-
-  const sorted = [...todayTasks].sort((a, b) => {
-    const aTime = a.scheduled_start_time ?? a.due_date ?? ''
-    const bTime = b.scheduled_start_time ?? b.due_date ?? ''
-    return new Date(aTime).getTime() - new Date(bTime).getTime()
-  })
-
-  return { todayTasks: sorted, recommendedExtra }
+  return (
+    tasks
+      .filter(
+        (task) =>
+          isActive(task) &&
+          !task.is_scheduled_event &&
+          isTodayMs(plannedStartMs(task, timeZone), nowMs, timeZone),
+      )
+      // `filter` already returned a copy, so sorting it touches nothing the caller holds.
+      .sort((a, b) => startOf(a) - startOf(b))
+  )
 }
 
 export type DailyPlan = {
-  /** Has a start time today → placed in a time slot. */
+  /** Has a start time today, booked or written → placed in a time slot. */
   readonly todayScheduled: readonly Task[]
   /** Due today but unscheduled → "Needs attention". */
   readonly needsAttention: readonly Task[]
@@ -90,8 +87,13 @@ export const filterDailyPlannerTasks = (
   for (const task of tasks) {
     if (!isActive(task)) continue
 
-    if (isLocalToday(task.scheduled_start_time, nowMs, timeZone)) {
+    // A time written into the task places it in its block, as a booked one does.
+    if (isTodayMs(plannedStartMs(task, timeZone), nowMs, timeZone)) {
       todayScheduled.push(task)
+    } else if (isBookedAhead(task, nowMs, timeZone)) {
+      // Planned for a later day. Listing it as carried over as well — because its due
+      // date has passed — told the user two different things about the same task.
+      continue
     } else if (isLocalToday(task.due_date, nowMs, timeZone)) {
       needsAttention.push(task)
     } else if (
@@ -104,7 +106,6 @@ export const filterDailyPlannerTasks = (
 
   return { todayScheduled, needsAttention, overdue }
 }
-
 
 /**
  * How much of a planner aside to draw.
@@ -121,7 +122,7 @@ export const filterDailyPlannerTasks = (
  */
 export const ASIDE_LIMIT = 5
 
-export const asideView = <T,>(tasks: readonly T[]): { shown: readonly T[]; hidden: number } => ({
+export const asideView = <T>(tasks: readonly T[]): { shown: readonly T[]; hidden: number } => ({
   shown: tasks.slice(0, ASIDE_LIMIT),
   hidden: Math.max(0, tasks.length - ASIDE_LIMIT),
 })

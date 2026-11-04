@@ -1,4 +1,9 @@
-import { filterDailyPlannerTasks, filterTodayPlanTasks, ASIDE_LIMIT, asideView } from './plannerLogic'
+import {
+  filterDailyPlannerTasks,
+  filterTodayPlanTasks,
+  ASIDE_LIMIT,
+  asideView,
+} from './plannerLogic'
 // The date primitives moved to utils so commitments could use them without
 // depending on the tasks feature. Still tested here, since the planner rules are
 // what make the timezone cases matter.
@@ -60,50 +65,59 @@ describe('isLocalPast', () => {
 
 describe('filterTodayPlanTasks', () => {
   const opts = { nowMs: NOW, timeZone: LA }
+  const ids = (tasks: readonly Task[]) => tasks.map((t) => t.id)
 
-  it('includes tasks scheduled or due today', () => {
-    const scheduled = task({ id: 'sched', scheduled_start_time: '2026-08-11T20:00:00Z' })
+  it('holds tasks booked for today, in time order', () => {
+    const later = task({ id: 'later', scheduled_start_time: '2026-08-11T22:00:00Z' })
+    const sooner = task({ id: 'sooner', scheduled_start_time: '2026-08-11T20:00:00Z' })
+    expect(ids(filterTodayPlanTasks([later, sooner], opts))).toEqual(['sooner', 'later'])
+  })
+
+  it('places a time written into the task on its due day', () => {
+    const dinner = task({ id: 'dinner', description: '7 PM', due_date: '2026-08-11T16:00:00Z' })
+    expect(ids(filterTodayPlanTasks([dinner], opts))).toEqual(['dinner'])
+  })
+
+  it('leaves out work that is only due today, future work and scheduled events', () => {
     const due = task({ id: 'due', due_date: '2026-08-11T22:00:00Z' })
-    const future = task({ id: 'future', due_date: '2026-08-25T20:00:00Z' })
-
-    const { todayTasks } = filterTodayPlanTasks([scheduled, due, future], opts)
-    expect(todayTasks.map((t) => t.id).sort()).toEqual(['due', 'sched'])
+    const future = task({ id: 'future', scheduled_start_time: '2026-08-25T20:00:00Z' })
+    const event = task({
+      id: 'event',
+      is_scheduled_event: true,
+      scheduled_start_time: '2026-08-11T20:00:00Z',
+    })
+    expect(filterTodayPlanTasks([due, future, event], opts)).toEqual([])
   })
 
   it('excludes non-pending tasks', () => {
-    const done = task({ id: 'done', status: 'completed', due_date: '2026-08-11T20:00:00Z' })
-    expect(filterTodayPlanTasks([done], opts).todayTasks).toEqual([])
+    const done = task({
+      id: 'done',
+      status: 'completed',
+      scheduled_start_time: '2026-08-11T20:00:00Z',
+    })
+    expect(filterTodayPlanTasks([done], opts)).toEqual([])
+  })
+})
+
+describe('filterDailyPlannerTasks and planned work', () => {
+  const opts = { nowMs: NOW, timeZone: LA }
+
+  it('does not list work booked for a later day as carried over', () => {
+    const planned = task({
+      id: 'planned',
+      due_date: '2026-08-09T20:00:00Z',
+      scheduled_start_time: '2026-08-13T17:00:00Z',
+    })
+    const plan = filterDailyPlannerTasks([planned], opts)
+    expect(plan.overdue).toEqual([])
+    expect(plan.todayScheduled).toEqual([])
   })
 
-  it('surfaces the recommended task separately when it has no today anchor', () => {
-    const rec = task({ id: 'rec' })
-    const result = filterTodayPlanTasks([rec], { ...opts, recommendedTaskId: 'rec' })
-    expect(result.todayTasks).toEqual([])
-    expect(result.recommendedExtra.map((t) => t.id)).toEqual(['rec'])
-  })
-
-  it('does not duplicate the recommended task when it is already anchored today', () => {
-    const rec = task({ id: 'rec', due_date: '2026-08-11T20:00:00Z' })
-    const result = filterTodayPlanTasks([rec], { ...opts, recommendedTaskId: 'rec' })
-    expect(result.todayTasks).toHaveLength(1)
-    expect(result.recommendedExtra).toHaveLength(0)
-  })
-
-  it('sorts by time, scheduled start taking precedence over due date', () => {
-    const late = task({ id: 'late', scheduled_start_time: '2026-08-11T23:00:00Z' })
-    const early = task({ id: 'early', scheduled_start_time: '2026-08-11T16:00:00Z' })
-    const { todayTasks } = filterTodayPlanTasks([late, early], opts)
-    expect(todayTasks.map((t) => t.id)).toEqual(['early', 'late'])
-  })
-
-  it('does not mutate the input array', () => {
-    const input = [
-      task({ id: 'b', scheduled_start_time: '2026-08-11T23:00:00Z' }),
-      task({ id: 'a', scheduled_start_time: '2026-08-11T16:00:00Z' }),
-    ]
-    const snapshot = [...input]
-    filterTodayPlanTasks(input, opts)
-    expect(input).toEqual(snapshot)
+  it('puts a task with a time in its notes into today’s blocks', () => {
+    const dinner = task({ id: 'dinner', description: '7 PM', due_date: '2026-08-11T16:00:00Z' })
+    const plan = filterDailyPlannerTasks([dinner], opts)
+    expect(plan.todayScheduled.map((t) => t.id)).toEqual(['dinner'])
+    expect(plan.needsAttention).toEqual([])
   })
 })
 

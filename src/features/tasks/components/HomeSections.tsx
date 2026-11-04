@@ -6,13 +6,13 @@ import type { BehaviouralSignals } from '@/features/tasks/logic/capriScoring'
 import type { Task } from '@/types/entities'
 import type { TaskFeed } from '../hooks/useTaskFeed'
 import type { useUpNext } from '../hooks/useUpNext'
-import { TodayCommitmentsSection } from '@/features/commitments'
 import { HeroCard } from './HeroCard'
 import { MilestoneBanner } from './MilestoneBanner'
 import { NothingToDo } from './NothingToDo'
 import { topPrioritiesCleared } from '../logic/milestone'
+import type { HomeFocus } from '../logic/dayFocus'
 import { SectionLabel } from '@/components/SectionLabel/SectionLabel'
-import { TodayPlanCard } from './TodayPlanCard'
+import { TodayPlanSection } from './TodayPlanSection'
 import { UpNextCard } from './UpNextCard'
 
 /**
@@ -44,14 +44,16 @@ type HomeSectionsProps = {
   readonly upNext: UpNext
   readonly signals: BehaviouralSignals
   readonly actions: TaskActions
+  /** What Start Here and Up Next show — `homeFocus`, decided once with the widget. */
+  readonly focus: HomeFocus
 }
 
-export const HomeSections = ({ feed, signals, actions, upNext }: HomeSectionsProps) => {
+export const HomeSections = ({ feed, signals, actions, upNext, focus }: HomeSectionsProps) => {
   const theme = useTheme()
   const { onOpen, onComplete, onDefer, onCancel, onViewPlan, onAddTask } = actions
   const overlapCount = useHomeOverlapCount(feed)
 
-  const hero = upNext.hero?.task ?? feed.heroTask
+  const { hero, queue } = focus
   /**
    * Nothing to start, nothing queued, nothing planned.
    *
@@ -59,7 +61,7 @@ export const HomeSections = ({ feed, signals, actions, upNext }: HomeSectionsPro
    * screen was a stack of cards explaining their own emptiness. One card says it
    * once, and offers the way out of it.
    */
-  const empty = !hero && upNext.entries.length === 0 && feed.todayTasks.length === 0
+  const empty = !hero && queue.length === 0 && feed.todayTasks.length === 0
 
   return (
     <View style={{ gap: theme.spacing.xl }}>
@@ -74,10 +76,8 @@ export const HomeSections = ({ feed, signals, actions, upNext }: HomeSectionsPro
         <View>
           <SectionLabel>Start Here</SectionLabel>
           <HeroCard
-            // CAPRI's pick when it has answered; the local ranking until then, and
-            // whenever the model is unreachable.
             task={hero}
-            {...(upNext.hero ? { reason: upNext.hero.reason } : {})}
+            {...(focus.reason ? { reason: focus.reason } : {})}
             nowMs={feed.nowMs}
             timeZone={feed.timeZone}
             signals={signals}
@@ -89,11 +89,11 @@ export const HomeSections = ({ feed, signals, actions, upNext }: HomeSectionsPro
         </View>
       )}
 
-      {upNext.entries.length === 0 ? null : (
+      {queue.length === 0 ? null : (
         <View>
           <SectionLabel>Up Next</SectionLabel>
           <UpNextCard
-            entries={upNext.entries}
+            entries={queue}
             loading={upNext.loading}
             onRefresh={upNext.refresh}
             signals={signals}
@@ -108,23 +108,14 @@ export const HomeSections = ({ feed, signals, actions, upNext }: HomeSectionsPro
       {empty ? null : (
         <View>
           <SectionLabel>Today&apos;s Plan</SectionLabel>
-          <TodayPlanCard
-            tasks={feed.todayTasks}
-            timeZone={feed.timeZone}
+          <TodayPlanSection
+            feed={feed}
             onOpen={onOpen}
-            onViewAll={onViewPlan}
+            onViewPlan={onViewPlan}
             overlapCount={overlapCount}
           />
         </View>
       )}
-
-      <TodayCommitmentsSection
-        userEmail={feed.userEmail}
-        tasks={feed.allTasks}
-        nowMs={feed.nowMs}
-        timeZone={feed.timeZone}
-        onOpenTask={onOpen}
-      />
     </View>
   )
 }

@@ -17,7 +17,7 @@ import { OnboardingSheet, useOnboarding } from '@/features/onboarding'
 import { AddTaskButton } from '../components/AddTaskButton'
 import { useHomeActions } from '../hooks/useHomeActions'
 import { useTaskFeed } from '../hooks/useTaskFeed'
-import { useUpNext } from '../hooks/useUpNext'
+import { useHomeFocus } from '../hooks/useHomeFocus'
 import { useWidgetSnapshot } from '../hooks/useWidgetSnapshot'
 import { reportTimeToUsable } from '@/services/startup/startupTiming'
 import { HomeHeader } from '../components/HomeHeader'
@@ -37,23 +37,10 @@ export const NativeHomeScreen = () => {
   const wash = useWash()
   const navigation = useNavigation<AppNavigation>()
   const feed = useTaskFeed()
-  // Every open task is offered, and the local top four carry the screen until the
-  // answer arrives. The hero is among them: CAPRI decides what to start, so leaving
-  // the local pick out would take that choice away from it.
-  const upNext = useUpNext({
-    candidates: feed.actionable,
-    shortlist: feed.ranked,
-    userEmail: feed.userEmail,
-    nowMs: feed.nowMs,
-    timeZone: feed.timeZone,
-  })
+  const { upNext, focus } = useHomeFocus(feed)
   // Ordered after `upNext` on purpose: the ignored signal has to be recorded against
   // the hero the user actually saw.
-  const actions = useHomeActions(
-    feed,
-    'home',
-    upNext.hero?.task.id ?? feed.heroTask?.id ?? null,
-  )
+  const actions = useHomeActions(feed, 'home', focus.hero?.id ?? null)
   const onboarding = useOnboarding()
 
   // The first moment the app is usable rather than merely visible.
@@ -64,8 +51,8 @@ export const NativeHomeScreen = () => {
   // Hand the home-screen widget exactly what this screen is showing, so the two can
   // never disagree about what to start.
   useWidgetSnapshot({
-    hero: upNext.hero?.task ?? feed.heroTask,
-    upNext: upNext.entries.map((entry) => entry.task),
+    hero: focus.hero,
+    upNext: focus.queue.map((entry) => entry.task),
     // Everything CAPRI may rank, not just the four on screen: the widget says
     // "+N more" from this.
     totalOpen: feed.actionable.length,
@@ -120,7 +107,13 @@ export const NativeHomeScreen = () => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
       >
         {feed.isShowingSaved ? <OfflineNotice /> : null}
-        <HomeSections feed={feed} signals={signals} actions={actions} upNext={upNext} />
+        <HomeSections
+          feed={feed}
+          signals={signals}
+          actions={actions}
+          upNext={upNext}
+          focus={focus}
+        />
       </ScrollView>
 
       <AddTaskButton onPress={() => navigation.navigate('AddTask')} />

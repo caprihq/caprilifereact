@@ -5,6 +5,7 @@ import { usePlan } from '@/hooks/usePlan'
 import { parseTaskHeuristically } from '@/features/tasks/logic/parseTaskInput'
 import type { ParsedTask } from '@/features/tasks/logic/parseTaskInput'
 import type { Engine } from '@/services/analytics/events'
+import { withStatedTime } from '../logic/statedTime'
 import { parseTaskWithAI } from '../services/aiTaskParser'
 
 /**
@@ -16,8 +17,11 @@ import { parseTaskWithAI } from '../services/aiTaskParser'
  *
  * `parser` says which engine read the last input, for `task_created`: the model, or
  * the local heuristic (a free plan, or a model call that failed).
+ *
+ * Either way, a time the person said ("dinner at 7pm") makes the draft a scheduled
+ * event at that time — see `withStatedTime`. Neither parser reads clock times.
  */
-export const useTaskParse = (userEmail: string | null, nowMs: number) => {
+export const useTaskParse = (userEmail: string | null, nowMs: number, timeZone: string) => {
   const { show } = useFeedback()
   const { hasAccess } = usePlan()
   const [parsing, setParsing] = useState(false)
@@ -28,10 +32,11 @@ export const useTaskParse = (userEmail: string | null, nowMs: number) => {
       const trimmed = input.trim()
       if (!trimmed) return { title: '' }
 
+      const when = { nowMs, timeZone }
       // The AI pass is a paid perk; everyone else still gets useful defaults.
       if (!hasAccess('analytics')) {
         setParser('local')
-        return parseTaskHeuristically(trimmed, nowMs)
+        return withStatedTime(parseTaskHeuristically(trimmed, nowMs), trimmed, when)
       }
 
       setParsing(true)
@@ -49,12 +54,12 @@ export const useTaskParse = (userEmail: string | null, nowMs: number) => {
           })
         }
 
-        return outcome.draft
+        return withStatedTime(outcome.draft, trimmed, when)
       } finally {
         setParsing(false)
       }
     },
-    [hasAccess, nowMs, userEmail, show],
+    [hasAccess, nowMs, timeZone, userEmail, show],
   )
 
   return { parse, parsing, parser }

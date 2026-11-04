@@ -77,7 +77,7 @@ export const useAddTask = (onSaved: () => void) => {
   const contextSummary = useUserContext({ userEmail: feed.userEmail, nowMs, timeZone })
 
   const [prioritising, setPrioritising] = useState(false)
-  const { parse, parsing, parser } = useTaskParse(feed.userEmail, nowMs)
+  const { parse, parsing, parser } = useTaskParse(feed.userEmail, nowMs, timeZone)
 
   const atFreeLimit =
     !hasAccess('unlimited_tasks') && feed.allTasks.length >= FREE_LIMITS.totalTasks

@@ -39,7 +39,7 @@ const dotColour = (task: Task, theme: AppTheme): string => {
 }
 
 const clockLabel = (task: Task, timeZone: string): string | null => {
-  const anchor = anchorOf(task)
+  const anchor = anchorOf(task, timeZone)
   if (!anchor) return null
 
   const date = new Date(anchor)

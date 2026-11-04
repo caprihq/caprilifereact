@@ -51,14 +51,11 @@ describe('feed composition', () => {
     expect(upNext.map((t) => t.id)).not.toContain(hero?.id)
   })
 
-  it('pins the hero into Today even when it has no date of its own', () => {
+  it('keeps the hero out of Today’s Plan unless it has a time today', () => {
+    // Start Here already shows it. Adding it to the plan too, beside an old clock
+    // time from its record, was one of the signals that disagreed.
     const hero = task({ id: 'hero' })
-    const plan = filterTodayPlanTasks([hero], {
-      nowMs: NOW,
-      timeZone: LA,
-      recommendedTaskId: 'hero',
-    })
-    expect([...plan.todayTasks, ...plan.recommendedExtra].map((t) => t.id)).toEqual(['hero'])
+    expect(filterTodayPlanTasks([hero], { nowMs: NOW, timeZone: LA })).toEqual([])
   })
 
   it('an empty task list yields no hero rather than throwing', () => {

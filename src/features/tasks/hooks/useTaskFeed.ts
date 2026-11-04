@@ -6,7 +6,7 @@ import { useNow } from '@/hooks/useNow'
 import { loadSignals } from '../logic/signalsStore'
 import { rankTasks } from '@/features/tasks/logic/capriScoring'
 import { filterTodayPlanTasks } from '@/features/tasks/logic/plannerLogic'
-import { isActiveTask } from '@/features/tasks/logic/taskFilters'
+import { currentTask, rankableTasks } from '@/features/tasks/logic/dayFocus'
 import type { Task } from '@/types/entities'
 import { queryKeys, useCurrentUser } from '@/services/api'
 import { useTasks } from '../services/taskQueries'
@@ -48,6 +48,11 @@ export type TaskFeed = {
   readonly allTasks: readonly Task[]
   /** Highest-ranked actionable task — the "Start Here" hero. */
   readonly heroTask: Task | null
+  /**
+   * The task booked for right now, if any. It is Start Here whatever the ranking
+   * says: the plan already decided, and overruling it is what made the two disagree.
+   */
+  readonly currentTask: Task | null
   /** Next best three, excluding the hero. */
   readonly upNext: readonly Task[]
   /**
@@ -58,7 +63,8 @@ export type TaskFeed = {
    */
   readonly ranked: readonly Task[]
   /**
-   * Every task CAPRI may recommend — open work, minus scheduled events.
+   * Every task CAPRI may recommend — open work that is not an appointment and not
+   * waiting for a booked time (see `rankableTasks`).
    *
    * The recommender is given this rather than `ranked` because a shortlist of four
    * makes the model's judgement almost decorative: it could only reorder what the
@@ -66,7 +72,7 @@ export type TaskFeed = {
    * two days could never surface a task the local pass had ranked fifth.
    */
   readonly actionable: readonly Task[]
-  /** Scheduled or due today, plus the hero if it has no today anchor. */
+  /** Tasks with a time today, booked or written into them. Fixed items come separately. */
   readonly todayTasks: readonly Task[]
   /** Fixed to the moment the feed was computed, so all views agree. */
   readonly nowMs: number
@@ -90,20 +96,14 @@ export const useTaskFeed = (): TaskFeed => {
     const completed = tasks.filter((task) => task.status === 'completed')
     const signals = loadSignals(nowMs, completed)
 
-    // Scheduled events are commitments, not work to rank. `isActiveTask` is the
-    // shared definition the filter bar also uses — this file used to keep its
-    // own copy of the status list, which could drift from it.
-    const actionable = tasks.filter((task) => isActiveTask(task) && !task.is_scheduled_event)
+    // Appointments and booked work are planned around, not ranked: they belong to
+    // Today's Plan. What is left is the work CAPRI chooses between.
+    const when = { nowMs, timeZone }
+    const actionable = rankableTasks(tasks, when)
 
     const ranked = rankTasks(actionable, { nowMs, limit: 4, signals })
     const heroTask = ranked[0]?.task ?? null
     const upNext = ranked.slice(1, 4).map((entry) => entry.task)
-
-    const { todayTasks, recommendedExtra } = filterTodayPlanTasks(tasks, {
-      nowMs,
-      timeZone,
-      recommendedTaskId: heroTask?.id ?? null,
-    })
 
     return {
       isLoading: tasksQuery.isLoading,
@@ -122,10 +122,11 @@ export const useTaskFeed = (): TaskFeed => {
       timeZone,
       allTasks: tasks,
       heroTask,
+      currentTask: currentTask(tasks, when),
       upNext,
       ranked: ranked.map((entry) => entry.task),
       actionable,
-      todayTasks: [...todayTasks, ...recommendedExtra],
+      todayTasks: filterTodayPlanTasks(tasks, when),
       nowMs,
     }
   }, [tasks, user?.timezone, userEmail, tasksQuery, nowMs, queryClient])

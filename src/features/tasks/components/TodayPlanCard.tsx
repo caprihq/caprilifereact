@@ -4,28 +4,43 @@ import Ionicons from 'react-native-vector-icons/Ionicons'
 import { Card } from '@/components/Card'
 import { EmptyState } from '@/components/EmptyState'
 import { Text } from '@/components/Text'
+import type { TimelineItem } from '@/features/commitments'
 import { useTheme } from '@/hooks/useTheme'
-import type { Task } from '@/types/entities'
+import type { TodayPlan } from '../logic/todayPlan'
+import { TodayPlanRow } from './TodayPlanRow'
 
 /**
- * Today's Plan — scheduled or due today, capped at three with a way through
- * to the full planner. Mirrors the web client's TodayPlanCard.
+ * Today's Plan — what the day already holds, in time order: commitments, calendar
+ * events, appointments and the tasks the person gave a time. Built by
+ * `buildTodayPlan`; the full day is one tap away in the planner.
  */
 
-const MAX_ROWS = 3
-
 type TodayPlanCardProps = {
-  readonly tasks: readonly Task[]
+  readonly plan: TodayPlan
   readonly timeZone: string
-  readonly onOpen: (task: Task) => void
+  /** Opens a task. Commitments and calendar events have no detail screen. */
+  readonly onSelect: (item: TimelineItem) => void
+  /** Asks to remove one of CAPRI's own commitments. Calendar rows ignore it. */
+  readonly onLongPress: (item: TimelineItem) => void
   readonly onViewAll: () => void
   /** Today's clashes. Shown as one line that opens the planner, where they are fixed. */
   readonly overlapCount?: number
 }
 
-export const TodayPlanCard = ({ tasks, timeZone, onOpen, onViewAll, overlapCount = 0 }: TodayPlanCardProps) => {
+/** "Nothing left" and "nothing planned" are different days, and say so. */
+const emptyMessage = (plan: TodayPlan): string =>
+  plan.total === 0 ? 'Nothing planned yet today' : 'Nothing else planned today'
+
+export const TodayPlanCard = ({
+  plan,
+  timeZone,
+  onSelect,
+  onLongPress,
+  onViewAll,
+  overlapCount = 0,
+}: TodayPlanCardProps) => {
   const theme = useTheme()
-  const visible = tasks.slice(0, MAX_ROWS)
+  const visible = plan.rows
 
   return (
     <Card flush>
@@ -54,36 +69,17 @@ export const TodayPlanCard = ({ tasks, timeZone, onOpen, onViewAll, overlapCount
       ) : null}
 
       {visible.length === 0 ? (
-        <EmptyState message="No tasks scheduled for today" />
+        <EmptyState message={emptyMessage(plan)} />
       ) : (
-        visible.map((task, index) => (
-          <Pressable
-            key={task.id}
-            accessibilityRole="button"
-            accessibilityLabel={task.title}
-            onPress={() => onOpen(task)}
-            style={({ pressed }) => [
-              {
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                paddingHorizontal: theme.spacing.lg,
-                paddingVertical: theme.spacing.md,
-                opacity: pressed ? 0.6 : 1,
-              },
-              index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.border },
-            ]}
-          >
-            <Text variant="caption" tone={task.scheduled_start_time ? 'secondary' : 'accent'}>
-              {slotLabel(task, timeZone)}
-            </Text>
-            <Text variant="caption" tone="muted">
-              •
-            </Text>
-            <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>
-              {task.title}
-            </Text>
-          </Pressable>
+        visible.map((item, index) => (
+          <TodayPlanRow
+            key={item.id}
+            item={item}
+            timeZone={timeZone}
+            isFirst={index === 0}
+            onPress={() => onSelect(item)}
+            onLongPress={() => onLongPress(item)}
+          />
         ))
       )}
 
@@ -94,25 +90,12 @@ export const TodayPlanCard = ({ tasks, timeZone, onOpen, onViewAll, overlapCount
           style={{ paddingVertical: theme.spacing.md, alignItems: 'center' }}
         >
           <Text variant="label" tone="accent">
-            View Full Plan
+            {plan.hidden > 0
+              ? `View Full Plan (${String(plan.hidden)} more)`
+              : 'View Full Plan'}
           </Text>
         </Pressable>
       </View>
     </Card>
   )
-}
-
-/** Start time when scheduled, otherwise flag it as a suggestion. */
-const slotLabel = (task: Task, timeZone: string): string => {
-  const iso = task.scheduled_start_time
-  if (!iso) return 'Suggested'
-
-  const start = new Date(iso)
-  if (Number.isNaN(start.getTime())) return 'Suggested'
-
-  return start.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone,
-  })
 }

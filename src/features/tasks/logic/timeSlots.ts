@@ -1,5 +1,6 @@
 import { isLocalToday, localHourInstant } from '@/utils/localDate'
 import type { Task } from '@/types/entities'
+import { plannedStartMs } from './statedTime'
 
 /**
  * The day as three blocks: morning, afternoon, evening.
@@ -41,9 +42,14 @@ export const TIME_SLOTS: readonly TimeSlot[] = [
   { key: 'evening', label: 'Evening', sub: 'After 6pm', icon: 'moon-outline', defaultHour: 19 },
 ]
 
-/** What a task is anchored to: its time block if it has one, else its due date. */
-export const anchorOf = (task: Task): string | undefined =>
-  task.scheduled_start_time ?? task.due_date
+/**
+ * What a task is anchored to: its time block if it has one, then a time written in
+ * its title or notes ("Dinner, 7 PM" on its due day), else its due date.
+ */
+export const anchorOf = (task: Task, timeZone: string): string | undefined => {
+  const planned = plannedStartMs(task, timeZone)
+  return planned === null ? task.due_date : new Date(planned).toISOString()
+}
 
 /** The hour of an instant, in the user's zone. */
 export const localHourOf = (iso: string, timeZone: string): number | null => {
@@ -65,7 +71,7 @@ export const slotForHour = (hour: number): SlotKey =>
 
 /** Which block a task belongs to, or null when it has no anchor at all. */
 export const slotKeyFor = (task: Task, timeZone: string): SlotKey | null => {
-  const anchor = anchorOf(task)
+  const anchor = anchorOf(task, timeZone)
   if (!anchor) return null
 
   const hour = localHourOf(anchor, timeZone)
@@ -142,6 +148,6 @@ export const schedulableTasks = (
     if (task.status === 'completed' || task.status === 'canceled') return false
     if (task.is_scheduled_event) return false
 
-    const anchor = anchorOf(task)
+    const anchor = anchorOf(task, when.timeZone)
     return !anchor || !isLocalToday(anchor, when.nowMs, when.timeZone)
   })

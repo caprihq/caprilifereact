@@ -1,6 +1,6 @@
 import type { TimelineItem } from '@/features/commitments'
 import type { Task } from '@/types/entities'
-import { TIME_SLOTS, localHourOf, slotForHour, slotKeyFor } from './timeSlots'
+import { TIME_SLOTS, anchorOf, localHourOf, slotForHour, slotKeyFor } from './timeSlots'
 import type { SlotKey, TimeSlot } from './timeSlots'
 
 /**
@@ -33,8 +33,8 @@ export type UnifiedDay = {
   readonly allDay: readonly TimelineItem[]
 }
 
-const startMs = (task: Task): number => {
-  const ms = new Date(task.scheduled_start_time ?? task.due_date ?? '').getTime()
+const startMs = (task: Task, timeZone: string): number => {
+  const ms = new Date(anchorOf(task, timeZone) ?? '').getTime()
   return Number.isNaN(ms) ? Number.MAX_SAFE_INTEGER : ms
 }
 
@@ -48,7 +48,7 @@ const taskRows = (tasks: readonly Task[], slot: SlotKey, timeZone: string): DayR
     // A scheduled event is a fixed item: it arrives through the timeline, and
     // drawing it here too would show the same meeting twice.
     .filter((task) => !task.is_scheduled_event && slotKeyFor(task, timeZone) === slot)
-    .map((task) => ({ kind: 'task' as const, key: `task-${task.id}`, sortMs: startMs(task), task }))
+    .map((task) => ({ kind: 'task' as const, key: `task-${task.id}`, sortMs: startMs(task, timeZone), task }))
 
 const fixedRows = (fixed: readonly TimelineItem[], slot: SlotKey, timeZone: string): DayRow[] =>
   fixed
