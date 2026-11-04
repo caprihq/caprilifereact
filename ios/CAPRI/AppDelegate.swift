@@ -1,4 +1,5 @@
 import UIKit
+import FirebaseAnalytics
 import FirebaseCore
 import React
 import React_RCTAppDelegate
@@ -37,6 +38,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     if FirebaseApp.app() == nil,
        Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
       FirebaseApp.configure()
+      CapriAnalytics.start()
     }
 
     let delegate = ReactNativeDelegate()
@@ -226,6 +228,43 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
       WidgetCenter.shared.reloadAllTimelines()
     }
     completionHandler(.newData)
+  }
+}
+
+/**
+ * Which kind of build this is, stamped on Firebase before anything is recorded.
+ *
+ * Set here rather than from JavaScript because Firebase logs `first_open` and
+ * `session_start` itself at launch, before React Native has started. A tag set from
+ * JS would arrive after them, and a new install's first events could never be
+ * filtered by build. The values are documented in Analytics-Events.md.
+ *
+ * Development builds stop collecting altogether: testing from Xcode or in the
+ * simulator is not usage, and must not reach the reports.
+ */
+enum CapriAnalytics {
+  static func start() {
+    Analytics.setUserProperty(buildType, forName: "build_type")
+#if DEBUG
+    Analytics.setAnalyticsCollectionEnabled(false)
+#endif
+  }
+
+  /// The same test react-native-device-info uses. A provisioning profile is only
+  /// embedded in builds installed from Xcode or ad hoc; TestFlight and the App Store
+  /// strip it. Of those two, only TestFlight installs carry a sandbox receipt.
+  private static var buildType: String {
+#if DEBUG || targetEnvironment(simulator)
+    return "development"
+#else
+    if Bundle.main.path(forResource: "embedded", ofType: "mobileprovision") != nil {
+      return "development"
+    }
+    if Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt" {
+      return "testflight"
+    }
+    return "app_store"
+#endif
   }
 }
 

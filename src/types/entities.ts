@@ -154,6 +154,8 @@ export type Plan = (typeof PLANS)[number]
 export type User = {
   readonly id: string
   readonly email: string
+  /** Base44's own timestamp. Read only as a date, for how new the account is. */
+  readonly created_date?: string
   readonly full_name?: string
   readonly role?: 'admin' | 'user'
   readonly plan?: Plan

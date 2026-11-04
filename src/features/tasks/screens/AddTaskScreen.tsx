@@ -114,7 +114,7 @@ export const AddTaskScreen = () => {
         onEdit={setEditing}
         timeZone={timeZone}
         saving={isSaving}
-        onSave={(draft) => void save(draft)}
+        onSave={(draft) => void save(draft, usedVoice ? 'voice' : 'typed')}
         capture={{ input, onChangeInput: setInput, onNext, parsing, atFreeLimit, voice: voiceProps }}
         recurrenceLocked={!hasAccess('recurring_tasks')}
         onUpgrade={upgrade.prompt}

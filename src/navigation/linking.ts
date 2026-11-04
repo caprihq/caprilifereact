@@ -3,6 +3,9 @@ import { getStateFromPath } from '@react-navigation/native'
 import type { LinkingOptions } from '@react-navigation/native'
 
 import { base44Config } from '@/config'
+import { track } from '@/services/analytics/analytics'
+import { openSourceOf } from '@/services/analytics/openSource'
+import type { LinkArrival } from '@/services/analytics/openSource'
 import { diagUrl } from '@/utils'
 import {
   HOME_LINK_PATH,
@@ -11,6 +14,12 @@ import {
 } from '../../modules/capri-deep-link/constants'
 import { takePendingLink } from '../../modules/capri-deep-link'
 import type { RootStackParamList } from './types'
+
+/** Count the open by where it came from: the widget, a reminder, or a shared link. */
+const noteOpen = (url: string, arrival: LinkArrival): void => {
+  const source = openSourceOf(url, arrival)
+  if (source) track({ name: 'app_opened_from', params: { source } })
+}
 
 /**
  * Every way into a screen from outside the app.
@@ -73,11 +82,15 @@ export const linking: LinkingOptions<RootStackParamList> = {
   },
 
   async getInitialURL() {
-    const url = (await Linking.getInitialURL()) ?? (await takePendingLink())
+    const opened = await Linking.getInitialURL()
+    const url = opened ?? (await takePendingLink())
     // Printed in release too. "The widget opened the wrong screen" has two very
     // different causes — the wrong URL arrived, or the right one was routed
     // wrongly — and only the console can say which.
-    if (url) diagUrl('link.cold', url)
+    if (url) {
+      diagUrl('link.cold', url)
+      noteOpen(url, opened ? 'opened' : 'parked')
+    }
     return url
   },
 
@@ -91,6 +104,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
   subscribe(listener) {
     const urlSubscription = Linking.addEventListener('url', ({ url }) => {
       diagUrl('link.warm', url)
+      noteOpen(url, 'opened')
       listener(url)
     })
 
@@ -98,6 +112,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       void takePendingLink().then((url) => {
         if (url) {
           diagUrl('link.parked', url)
+          noteOpen(url, 'parked')
           listener(url)
         }
       })

@@ -35,7 +35,7 @@ export const AllTasksScreen = () => {
   const contentBottom = useContentBottom()
   const wash = useWash()
   const feed = useTaskFeed()
-  const actions = useHomeActions(feed)
+  const actions = useHomeActions(feed, 'all_tasks')
   const [filter, setFilter] = useState<TaskFilter>('all')
   const [refreshing, setRefreshing] = useState(false)
 

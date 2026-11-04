@@ -49,7 +49,11 @@ export const NativeHomeScreen = () => {
   })
   // Ordered after `upNext` on purpose: the ignored signal has to be recorded against
   // the hero the user actually saw.
-  const actions = useHomeActions(feed, upNext.hero?.task.id ?? feed.heroTask?.id ?? null)
+  const actions = useHomeActions(
+    feed,
+    'home',
+    upNext.hero?.task.id ?? feed.heroTask?.id ?? null,
+  )
   const onboarding = useOnboarding()
 
   // The first moment the app is usable rather than merely visible.

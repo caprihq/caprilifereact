@@ -7,8 +7,11 @@ import {
   setUserProperties,
 } from '@react-native-firebase/analytics'
 
+import { mmkvPrefStore } from '@/services/storage'
+import type { User } from '@/types/entities'
 import { logWarn } from '@/utils'
-import type { AnalyticsEvent, TrackedScreen } from './events'
+import { daysSinceSignup, isNewAccount, userPropertiesFor } from './audience'
+import type { AnalyticsEvent, CaptureInput, Engine, TrackedScreen } from './events'
 
 /**
  * Firebase Analytics wrapper.
@@ -25,23 +28,36 @@ import type { AnalyticsEvent, TrackedScreen } from './events'
  * not `analytics().logEvent()`.
  */
 
+/**
+ * Collection is on for release builds only.
+ *
+ * Development builds used to send everything, so a day in the simulator showed up in
+ * the same reports as App Store customers. The app delegate switches collection off
+ * natively too, before Firebase's own launch events; this keeps JavaScript from
+ * switching it back on.
+ */
 export const initAnalytics = async (): Promise<void> => {
   try {
-    await setAnalyticsCollectionEnabled(getAnalytics(), true)
+    await setAnalyticsCollectionEnabled(getAnalytics(), !__DEV__)
   } catch (error) {
-    logWarn('[analytics] could not enable collection', error)
+    logWarn('[analytics] could not set collection', error)
   }
 }
 
+/** Who is signed in, kept for the activation events. Never the email. */
+let signup: { readonly id: string; readonly createdDate: string | undefined } | null = null
+
 /**
- * Who is using the app, as an opaque id.
+ * Who is using the app, as an opaque id, plus the properties reports are split by.
  *
  * The Base44 user id and nothing else — never the email or display name. Pass null on
  * sign-out so the next person's activity is not filed under the last one's.
  */
-export const setAnalyticsUser = (userId: string | null): void => {
+export const setAnalyticsUser = (user: User | null): void => {
+  signup = user ? { id: user.id, createdDate: user.created_date } : null
   try {
-    void setUserId(getAnalytics(), userId)
+    void setUserId(getAnalytics(), user?.id ?? null)
+    if (user) void setUserProperties(getAnalytics(), userPropertiesFor(user))
   } catch (error) {
     logWarn('[analytics] setUserId failed', error)
   }
@@ -50,8 +66,8 @@ export const setAnalyticsUser = (userId: string | null): void => {
 /**
  * Which plan the user is on, so every other number can be read by tier.
  *
- * Nearly every question worth asking ends with "…and is that different for people
- * who pay?", and a user property answers it without adding a parameter to each event.
+ * Set at sign-in, and again whenever the plan is re-checked, so an upgrade shows from
+ * the moment it lands rather than from the next launch.
  */
 export const setPlanProperty = (plan: string): void => {
   try {
@@ -77,4 +93,65 @@ export const trackScreen = (screen: TrackedScreen): void => {
   } catch (error) {
     logWarn('[analytics] screen view failed', error)
   }
+}
+
+type FirstEvent = 'first_task_created' | 'first_up_next_success'
+
+/**
+ * An activation milestone: once per new account on this device.
+ *
+ * Only for accounts inside the activation window (see `ACTIVATION_WINDOW_DAYS`), and
+ * remembered on the device so a repeat does not inflate the event count. Firebase
+ * counts unique users on top of that, so a reinstall cannot count someone twice.
+ */
+const trackFirst = (name: FirstEvent): void => {
+  if (!signup) return
+  const days = daysSinceSignup(signup.createdDate, Date.now())
+  if (!isNewAccount(days)) return
+
+  const key = `capri.analytics.${name}.${signup.id}`
+  try {
+    if (mmkvPrefStore.getString(key) === 'sent') return
+    mmkvPrefStore.setString(key, 'sent')
+  } catch (error) {
+    logWarn(`[analytics] ${name} flag unreadable`, error)
+    return
+  }
+  track({ name, params: { days_since_signup: days } })
+}
+
+/**
+ * A task was saved from the capture sheet.
+ *
+ * `firstForAccount` is the caller's knowledge that the account had no tasks at all
+ * before this one; only then is it the account's first.
+ */
+export const trackTaskCreated = (created: {
+  readonly input: CaptureInput
+  readonly parser: Engine
+  readonly firstForAccount: boolean
+}): void => {
+  track({ name: 'task_created', params: { input: created.input, parser: created.parser } })
+  if (created.firstForAccount) trackFirst('first_task_created')
+}
+
+/**
+ * Up Next was ranked afresh.
+ *
+ * `fromModel` is true only when the model answered with tasks the app could show. A
+ * fallback to the local ranking is still a refresh, but not a successful
+ * recommendation.
+ */
+export const trackRanking = (ranking: {
+  readonly fromModel: boolean
+  readonly manual: boolean
+}): void => {
+  track({
+    name: 'up_next_refreshed',
+    params: {
+      source: ranking.fromModel ? 'ai' : 'local',
+      trigger: ranking.manual ? 'manual' : 'auto',
+    },
+  })
+  if (ranking.fromModel) trackFirst('first_up_next_success')
 }

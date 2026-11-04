@@ -3,6 +3,8 @@ import { useCallback } from 'react'
 import { nextRecurrencePatch } from '@/features/tasks/logic/recurrence'
 import { windowForSlot } from '@/features/tasks/logic/timeSlots'
 import type { SlotKey } from '@/features/tasks/logic/timeSlots'
+import { track } from '@/services'
+import type { TaskSource } from '@/services/analytics/events'
 import type { FeedbackTone } from '@/store'
 import type { Task, TaskStatus } from '@/types/entities'
 import { useCalendarSaves } from './useCalendarSaves'
@@ -82,10 +84,15 @@ export const useTaskMutations = ({ userEmail, onFeedback, syncCalendar = false }
    * Completing a recurring task also creates its next occurrence — the web
    * client's spawnNextRecurrence, moved to the one place completion happens so
    * a series cannot silently stop depending on which screen finished it.
+   *
+   * Counted here for the same reason. It used to be counted by Home alone, so a task
+   * finished in the planner or its own detail sheet was never recorded. The source
+   * is required, so a new screen cannot complete a task without saying which it is.
    */
   const completeTask = useCallback(
-    (task: Task) => {
+    (task: Task, source: TaskSource) => {
       setStatus(task, 'completed', 'Marked done ✓')
+      track({ name: 'task_completed', params: { source } })
 
       const patch = nextRecurrencePatch(task, Date.now())
       if (patch) createTask.mutate(patch)

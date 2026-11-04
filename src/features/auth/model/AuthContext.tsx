@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }: { readonly children: ReactNode }) => 
     setCrashUser(next.user?.id ?? null)
     // Same opaque id as Crashlytics gets, and never the email: the two have to
     // agree or a crash cannot be matched to the session that produced it.
-    setAnalyticsUser(next.user?.id ?? null)
+    setAnalyticsUser(next.user)
     // RevenueCat's appUserID must match the Base44 id or an existing
     // subscriber's entitlement cannot be attributed to them on a new device.
     // Fire-and-forget: a failed logIn only degrades attribution, and the

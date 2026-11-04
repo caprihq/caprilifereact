@@ -8,5 +8,7 @@ export {
   setAnalyticsUser,
   setPlanProperty,
   track,
+  trackRanking,
   trackScreen,
+  trackTaskCreated,
 } from './analytics/analytics'

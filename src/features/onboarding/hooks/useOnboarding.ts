@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 
+import { track } from '@/services'
 import { mmkvPrefStore } from '@/services/storage'
 import { useUserProfile } from '@/features/profile'
 import { needsOnboarding, toProfilePatch } from '../logic/onboardingAnswers'
@@ -53,17 +54,24 @@ export const useOnboarding = () => {
       const saved = await update(toProfilePatch(answers))
       setSaving(false)
       markDone()
+      track({ name: 'onboarding_finished', params: { outcome: 'completed' } })
       return saved
     },
     [markDone, update],
   )
+
+  /** Counted too: how many people skip setup is half of what the funnel asks. */
+  const skip = useCallback(() => {
+    markDone()
+    track({ name: 'onboarding_finished', params: { outcome: 'skipped' } })
+  }, [markDone])
 
   return {
     open: forced || needsOnboarding(user, dismissed),
     restart,
     saving,
     finish,
-    skip: markDone,
+    skip,
     /**
      * The name the provider already gave us.
      *

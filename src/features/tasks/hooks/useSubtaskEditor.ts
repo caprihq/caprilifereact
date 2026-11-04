@@ -11,6 +11,7 @@ import {
   toggleSubtask,
 } from '@/features/tasks/logic/subtasks'
 import { useNow } from '@/hooks/useNow'
+import { track } from '@/services'
 import type { Subtask, Task } from '@/types/entities'
 import { generateSubtasks } from '../services/aiSubtasks'
 import { useTaskCrud } from '../services/useTaskCrud'
@@ -69,6 +70,7 @@ export const useSubtaskEditor = (task: Task, userEmail: string | null) => {
         return
       }
       write(result.subtasks)
+      track({ name: 'task_breakdown', params: { steps: result.subtasks.length } })
     } finally {
       setGenerating(false)
     }

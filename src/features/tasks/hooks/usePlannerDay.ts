@@ -99,7 +99,7 @@ export const usePlannerDay = (feed: TaskFeed) => {
     confirmLabel: COMPLETION_CONFIRM_LABEL,
     icon: COMPLETION_ICON,
     onConfirm: () => {
-      if (pendingCompletion) completeTask(pendingCompletion)
+      if (pendingCompletion) completeTask(pendingCompletion, 'planner')
       setPendingCompletion(null)
     },
     onCancel: () => {

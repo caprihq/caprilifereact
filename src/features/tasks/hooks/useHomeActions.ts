@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native'
 
 import { useFeedback } from '@/hooks/useFeedback'
 import { track } from '@/services'
+import type { TaskSource } from '@/services/analytics/events'
 import { recordIgnored, recordInteraction } from '../logic/signalsStore'
 import type { AppNavigation } from '@/navigation/types'
 import {
@@ -23,7 +24,11 @@ import type { TaskFeed } from './useTaskFeed'
  * signal recording sits next to the action that causes it rather than being
  * scattered through JSX.
  */
-export const useHomeActions = (feed: TaskFeed, displayedHeroId?: string | null) => {
+export const useHomeActions = (
+  feed: TaskFeed,
+  source: TaskSource,
+  displayedHeroId?: string | null,
+) => {
   const navigation = useNavigation<AppNavigation>()
   const { show } = useFeedback()
   const { completeTask, deferTask, cancelTask } = useTaskMutations({
@@ -57,17 +62,14 @@ export const useHomeActions = (feed: TaskFeed, displayedHeroId?: string | null) 
 
   const confirmCompletion = useCallback(() => {
     if (pending) {
-      completeTask(pending)
+      completeTask(pending, source)
       // Whether the hero specifically gets done is the product's central question:
-      // CAPRI's whole claim is that it picks the right next thing.
-      track(
-        heroId === pending.id
-          ? { name: 'start_here_completed', params: { source: 'home' } }
-          : { name: 'task_completed', params: { source: 'home' } },
-      )
+      // CAPRI's whole claim is that it picks the right next thing. Counted on top of
+      // `task_completed`, which every completion records, so the two read as a share.
+      if (heroId === pending.id) track({ name: 'start_here_completed', params: { source } })
     }
     setPending(null)
-  }, [completeTask, heroId, pending])
+  }, [completeTask, heroId, pending, source])
 
   const openTask = useCallback(
     (task: Task) => {
@@ -89,9 +91,9 @@ export const useHomeActions = (feed: TaskFeed, displayedHeroId?: string | null) 
       recordIgnored(task.id)
       // The other half of the same question. Completed-versus-skipped on the hero is
       // the one ratio that says whether the recommendation is any good.
-      track({ name: 'start_here_skipped', params: { source: 'home' } })
+      track({ name: 'start_here_skipped', params: { source } })
     },
-    [heroId],
+    [heroId, source],
   )
 
   const actions: TaskActions = useMemo(

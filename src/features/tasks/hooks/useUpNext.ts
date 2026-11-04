@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useFeedback } from '@/hooks/useFeedback'
 import { usePlan } from '@/hooks/usePlan'
-import { mmkvPrefStore } from '@/services/storage'
-import { logWarn } from '@/utils'
+import { trackRanking } from '@/services'
 import type { Task } from '@/types/entities'
 import { getTaskReason } from '../logic/taskReason'
 import {
@@ -14,12 +13,12 @@ import {
   hasNewCandidates,
   hydrate,
   isFresh,
-  refreshCountKey,
   topUpEntries,
   visibleEntries,
 } from '../logic/recommendationCache'
-import type { CacheEntry } from '../logic/recommendationCache'
 import { recommendTasks } from '../services/aiRecommendations'
+import { countRefresh, readCache, readCount, remember } from '../services/upNextStore'
+import type { UpNextEntry } from '../services/upNextStore'
 import { useUserContext } from './useUserContext'
 
 /**
@@ -49,46 +48,6 @@ import { useUserContext } from './useUserContext'
  * preferences and how full today already is. `useUserContext` supplies that, which
  * is what lets a heavy day push short tasks up the list.
  */
-
-const CACHE_KEY = 'capri.upnext.cache'
-
-const readCache = (): CacheEntry | null => {
-  try {
-    const raw = mmkvPrefStore.getString(CACHE_KEY)
-    return raw ? (JSON.parse(raw) as CacheEntry) : null
-  } catch (error) {
-    // A corrupt cache must cost a refresh, not the screen.
-    logWarn('upnext:cache:unreadable', error)
-    return null
-  }
-}
-
-const readCount = (nowMs: number): number =>
-  Number.parseInt(mmkvPrefStore.getString(refreshCountKey(nowMs)) ?? '0', 10) || 0
-
-export type UpNextEntry = { readonly task: Task; readonly reason: string }
-
-/** Store the answer so a remount inside the TTL costs nothing. */
-/** Four values travel together, so they arrive as one (§3.2 max-params). */
-const remember = (entry: {
-  readonly final: readonly UpNextEntry[]
-  readonly cachedAtMs: number
-  readonly tier: 'free' | 'paid'
-  readonly candidateIds: readonly string[]
-}): void => {
-  mmkvPrefStore.setString(
-    CACHE_KEY,
-    JSON.stringify({
-      recommendations: entry.final.map((item) => ({
-        task_id: item.task.id,
-        reason: item.reason,
-      })),
-      cachedAtMs: entry.cachedAtMs,
-      tier: entry.tier,
-      candidateIds: entry.candidateIds,
-    } satisfies CacheEntry),
-  )
-}
 
 /** The hero plus the queue behind it, from whichever source answered. */
 const split = (entries: readonly UpNextEntry[]) => ({
@@ -150,13 +109,13 @@ export const useUpNext = (request: UpNextRequest) => {
       })
       setLoading(false)
 
-      if (force) {
-        mmkvPrefStore.setString(refreshCountKey(nowMs), String(readCount(nowMs) + 1))
-      }
+      if (force) countRefresh(nowMs)
 
       // Hydrated against the full set: the model may well pick something the local
       // pass left out of the shortlist, which is the point of asking it.
       const hydrated = hydrate(recommended ?? fallbackRecommendations(local), candidates)
+      // A success only if the model named tasks that still exist to show.
+      trackRanking({ fromModel: recommended !== null && hydrated.length > 0, manual: force })
       // Topped up rather than replaced: a model that answers with fewer than it was
       // asked for, or names tasks since deleted, used to empty the queue outright.
       const final = topUpEntries(hydrated, local)

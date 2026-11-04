@@ -139,7 +139,7 @@ export const TaskDetailBody = ({ task, userEmail }: TaskDetailBodyProps) => {
         icon={COMPLETION_ICON}
         onConfirm={() => {
           setConfirmingComplete(false)
-          completeTask(task)
+          completeTask(task, 'task_detail')
           navigation.goBack()
         }}
         onCancel={() => {

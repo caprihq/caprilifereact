@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
+import { setPlanProperty } from '@/services'
 import { base44 } from '@/services/api'
 import { useCurrentUser } from '@/services/api'
 import { queryKeys } from '@/services/api'
@@ -38,6 +39,8 @@ export const usePlan = () => {
         data?: { plan?: Plan }
       }
       const next = result.data?.plan ?? plan
+      // So an upgrade is visible in the reports from now, not from the next launch.
+      setPlanProperty(next)
       await queryClient.invalidateQueries({ queryKey: queryKeys.currentUser })
       return next
     } catch (error) {

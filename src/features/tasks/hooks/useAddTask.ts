@@ -3,18 +3,19 @@ import { useCallback, useState } from 'react'
 import { useFeedback } from '@/hooks/useFeedback'
 import { usePlan } from '@/hooks/usePlan'
 import { FREE_LIMITS } from '@/config'
-import { parseTaskHeuristically } from '@/features/tasks/logic/parseTaskInput'
 import type { ParsedTask } from '@/features/tasks/logic/parseTaskInput'
 import { toTaskPatch } from '@/features/tasks/logic/toTaskPatch'
 import { fallbackPriority } from '@/features/tasks/logic/priorityFallback'
 import { useNow } from '@/hooks/useNow'
 import { useTimeZone } from '@/hooks/useTimeZone'
+import { trackTaskCreated } from '@/services'
+import type { CaptureInput } from '@/services/analytics/events'
 import type { TaskUpdate } from '../services/useTaskCrud'
-import { parseTaskWithAI } from '../services/aiTaskParser'
 import { prioritiseTask } from '../services/aiPrioritise'
 import type { PrioritiseResult } from '../services/aiPrioritise'
 import { useTaskMutations } from '../services/useTaskMutations'
 import { useTaskFeed } from './useTaskFeed'
+import { useTaskParse } from './useTaskParse'
 import { useUserContext } from './useUserContext'
 
 /**
@@ -65,50 +66,6 @@ const local = (draft: ParsedTask, nowMs: number): TaskUpdate => {
     priority_score: guess.priority_score,
   }
 }
-/**
- * Raw text → structured fields, without saving.
- *
- * Its own hook so `useAddTask` stays inside the body limit (§3.2), and because the
- * two halves of capture are genuinely separate: reading what the user wrote, and
- * deciding what the task is worth.
- */
-const useTaskParse = (userEmail: string | null, nowMs: number) => {
-  const { show } = useFeedback()
-  const { hasAccess } = usePlan()
-  const [parsing, setParsing] = useState(false)
-
-  const parse = useCallback(
-    async (input: string): Promise<ParsedTask> => {
-      const trimmed = input.trim()
-      if (!trimmed) return { title: '' }
-
-      // The AI pass is a paid perk; everyone else still gets useful defaults.
-      if (!hasAccess('analytics')) return parseTaskHeuristically(trimmed, nowMs)
-
-      setParsing(true)
-      try {
-        const outcome = await parseTaskWithAI(trimmed, nowMs, userEmail)
-
-        // Said out loud rather than degraded in silence: the user is watching for
-        // CAPRI to have understood them, and a heuristic parse just looks like CAPRI
-        // doing a worse job for no reason.
-        if (!outcome.usedAI) {
-          show({
-            message: "CAPRI couldn't read that one. Check the details before saving.",
-            tone: 'warning',
-          })
-        }
-
-        return outcome.draft
-      } finally {
-        setParsing(false)
-      }
-    },
-    [hasAccess, nowMs, userEmail, show],
-  )
-
-  return { parse, parsing }
-}
 
 export const useAddTask = (onSaved: () => void) => {
   const nowMs = useNow()
@@ -120,7 +77,7 @@ export const useAddTask = (onSaved: () => void) => {
   const contextSummary = useUserContext({ userEmail: feed.userEmail, nowMs, timeZone })
 
   const [prioritising, setPrioritising] = useState(false)
-  const { parse, parsing } = useTaskParse(feed.userEmail, nowMs)
+  const { parse, parsing, parser } = useTaskParse(feed.userEmail, nowMs)
 
   const atFreeLimit =
     !hasAccess('unlimited_tasks') && feed.allTasks.length >= FREE_LIMITS.totalTasks
@@ -159,7 +116,7 @@ export const useAddTask = (onSaved: () => void) => {
   )
 
   const save = useCallback(
-    async (parsed: ParsedTask, extras: TaskUpdate = {}) => {
+    async (parsed: ParsedTask, input: CaptureInput, extras: TaskUpdate = {}) => {
       if (!parsed.title.trim()) return
 
       if (atFreeLimit) {
@@ -181,10 +138,14 @@ export const useAddTask = (onSaved: () => void) => {
         // Last, so a caller that sets a field explicitly still wins.
         ...extras,
       })
+      // The feed holds every task the account has, done or not, so a loaded empty one
+      // means this is the first.
+      const firstForAccount = !feed.isLoading && !feed.isError && feed.allTasks.length === 0
+      trackTaskCreated({ input, parser, firstForAccount })
 
       onSaved()
     },
-    [atFreeLimit, createTask, judge, onSaved, show],
+    [atFreeLimit, createTask, feed, judge, onSaved, parser, show],
   )
 
   return {
