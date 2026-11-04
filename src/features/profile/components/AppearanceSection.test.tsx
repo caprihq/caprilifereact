@@ -33,7 +33,7 @@ describe('AppearanceSection', () => {
     expect(screen.getByText('Theme')).toBeTruthy()
     expect(
       screen.getByText(
-        'A colour tints the whole app — background, buttons and fields. White keeps it plain.',
+        'A color tints the whole app — background, buttons and fields. White keeps it plain.',
       ),
     ).toBeTruthy()
     expect(screen.getByText('Light or dark')).toBeTruthy()

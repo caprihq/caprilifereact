@@ -34,7 +34,7 @@ export const useReprioritise = (task: Task, userEmail: string | null) => {
      */
     if (!hasAccess('analytics')) {
       show({
-        message: 'Re-prioritising comes with Executive. Upgrade to let CAPRI re-judge a task.',
+        message: 'Re-prioritizing comes with Executive. Upgrade to let CAPRI re-judge a task.',
         tone: 'warning',
       })
       return

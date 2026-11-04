@@ -40,7 +40,7 @@ const STEPS = [
     // "Optional" stated outright: a field with no asterisk and a live Next button
     // still reads as required to most people, and Apple's guideline is about what
     // the user is made to do, not what the code enforces.
-    subtitle: "Optional — we'll use this to personalise CAPRI.",
+    subtitle: "Optional — we'll use this to personalize CAPRI.",
   },
   {
     id: 'hours',

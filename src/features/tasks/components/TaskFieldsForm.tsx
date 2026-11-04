@@ -168,7 +168,7 @@ const SaveRow = ({
     ) : null}
 
     <Button
-      label={draft.is_scheduled_event ? 'Save event' : 'Save & prioritise'}
+      label={draft.is_scheduled_event ? 'Save event' : 'Save & prioritize'}
       icon="sparkles"
       onPress={onSave}
       loading={saving}

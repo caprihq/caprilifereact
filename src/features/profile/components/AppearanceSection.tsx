@@ -34,7 +34,7 @@ export const AppearanceSection = () => {
         Theme
       </Text>
       <Text variant="caption" tone="secondary" style={{ marginTop: theme.spacing.xs }}>
-        A colour tints the whole app — background, buttons and fields. White keeps it
+        A color tints the whole app — background, buttons and fields. White keeps it
         plain.
       </Text>
 

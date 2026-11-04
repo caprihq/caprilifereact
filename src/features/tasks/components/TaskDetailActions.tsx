@@ -53,7 +53,7 @@ export const TaskDetailActions = ({
         <>
           <Button label="Mark done" variant="secondary" onPress={onComplete} />
           <Button
-            label={reprioritising ? 'Thinking…' : 'Ask CAPRI to re-prioritise'}
+            label={reprioritising ? 'Thinking…' : 'Ask CAPRI to re-prioritize'}
             variant="ghost"
             loading={reprioritising}
             onPress={canReprioritise ? onReprioritise : onUpgrade}

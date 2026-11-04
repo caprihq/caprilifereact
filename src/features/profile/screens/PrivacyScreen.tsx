@@ -33,7 +33,7 @@ const SECTIONS = [
   },
   {
     heading: 'AI features',
-    body: 'When you use AI prioritisation, recommendations, voice capture or subtasks, the task text is sent to our AI provider to generate a recommendation, along with your working hours and, if you have connected Google Calendar, the titles and times of today\'s events, so the answer fits your schedule. Smart Auto-Schedule sends your open task titles, deadlines and lengths, with the titles, times and locations of the next seven days of commitments and calendar events, to Anthropic\'s Claude so it can plan around them. Task notes and your email address are never sent to it. Our AI providers do not use it to train their models.',
+    body: 'When you use AI prioritization, recommendations, voice capture or subtasks, the task text is sent to our AI provider to generate a recommendation, along with your working hours and, if you have connected Google Calendar, the titles and times of today\'s events, so the answer fits your schedule. Smart Auto-Schedule sends your open task titles, deadlines and lengths, with the titles, times and locations of the next seven days of commitments and calendar events, to Anthropic\'s Claude so it can plan around them. Task notes and your email address are never sent to it. Our AI providers do not use it to train their models.',
   },
   {
     heading: 'Calendar',

@@ -45,7 +45,7 @@ const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stde
 const BENEFITS = [
   'Unlimited tasks',
   'Unlimited voice capture',
-  'AI prioritisation and Up Next',
+  'AI prioritization and Up Next',
   'Smart auto-scheduling',
   'Subtasks and recurring tasks',
   'Calendar integration',
@@ -145,7 +145,7 @@ export const PlanScreen = () => {
       </View>
 
       <Text variant="caption" tone="muted" align="center">
-        Subscriptions renew automatically and can be cancelled in your Apple ID settings.
+        Subscriptions renew automatically and can be canceled in your Apple ID settings.
       </Text>
 
       <LegalLinks onPrivacy={() => navigation.navigate('Privacy')} />
