@@ -33,11 +33,19 @@ const SECTIONS = [
   },
   {
     heading: 'AI features',
-    body: 'When you use AI prioritization, recommendations, voice capture or subtasks, the task text is sent to our AI provider to generate a recommendation, along with your working hours and, if you have connected Google Calendar, the titles and times of today\'s events, so the answer fits your schedule. Smart Auto-Schedule sends your open task titles, deadlines and lengths, with the titles, times and locations of the next seven days of commitments and calendar events, to Anthropic\'s Claude so it can plan around them. Task notes and your email address are never sent to it. Our AI providers do not use it to train their models.',
+    body: 'When you use AI prioritization, recommendations, voice capture or subtasks, the task text is sent to our AI provider to generate a recommendation, along with your working hours and, if you have connected Google Calendar, the titles and times of today\'s events, so the answer fits your schedule. Plan My Day sends your open task titles, deadlines and lengths, with the titles, times and locations of today\'s commitments and calendar events (or the next seven days\' when you ask it to plan later days), to Anthropic\'s Claude so it can plan around them. Task notes and your email address are never sent to it; when a note gives a time, such as "7 PM", only that time is used. Our AI providers do not use it to train their models.',
   },
   {
     heading: 'Calendar',
-    body: 'If you connect Google Calendar, CAPRI reads your events, including their titles, times and locations, to show your day alongside your tasks and plan around your commitments. It writes to your calendar only for time blocks you accept from Smart Auto-Schedule or add to a block in the planner, and never changes anything else. CAPRI\'s use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements, and it is never used to train generalized AI models.',
+    body: 'If you connect Google Calendar, CAPRI reads your events, including their titles, times and locations, to show your day alongside your tasks and plan around your commitments. It writes to your calendar only for time blocks you accept from Plan My Day or add to a block in the planner, and never changes anything else. CAPRI\'s use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements, and it is never used to train generalized AI models.',
+  },
+  {
+    heading: 'Usage and crash reports',
+    body: 'CAPRI uses Google Firebase to count which features are used, such as a task being created or completed, and to report crashes. These carry an anonymous account id, your plan, the app version and the kind of build, never task text, notes, voice transcripts or your email address, and are not used for advertising.',
+  },
+  {
+    heading: 'Subscriptions',
+    body: 'Purchases are made through Apple and their status is managed by RevenueCat. CAPRI never sees your payment details.',
   },
   {
     heading: 'Deleting your data',

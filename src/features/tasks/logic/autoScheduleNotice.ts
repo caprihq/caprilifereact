@@ -1,4 +1,5 @@
 import type { FeedbackTone } from '@/store'
+import type { PlanScope } from './unplacedReason'
 
 /**
  * Why auto-schedule came back with nothing → what to tell the user.
@@ -19,6 +20,7 @@ import type { FeedbackTone } from '@/store'
 export type EmptyPlan = {
   readonly reason?: string | undefined
   readonly workHours?: { readonly start?: number; readonly end?: number } | undefined
+  readonly scope: PlanScope
 }
 
 export type PlanNotice = {
@@ -42,7 +44,19 @@ export const emptyPlanNotice = (plan: EmptyPlan): PlanNotice => {
   // Open work exists, but every task already has a time ahead. Saying "your list is
   // clear" would be false; the plan is simply already made.
   if (plan.reason === 'all_planned') {
-    return { message: 'Everything open already has a time. Nothing new to place.', tone: 'success' }
+    return {
+      message: 'Everything open already has a time. Nothing new to place.',
+      tone: 'success',
+    }
+  }
+
+  if (plan.reason === 'no_free_slots' && plan.scope === 'today') {
+    return {
+      message:
+        `No free time left today${searchedWindow(plan.workHours)}. ` +
+        'Your tasks stay on your list, or plan later days instead.',
+      tone: 'info',
+    }
   }
 
   if (plan.reason === 'no_free_slots') {
@@ -55,7 +69,10 @@ export const emptyPlanNotice = (plan: EmptyPlan): PlanNotice => {
   }
 
   // An older backend, or one that answered in a way this build does not know.
-  return { message: 'CAPRI found no time to schedule into this week.', tone: 'info' }
+  return {
+    message: `CAPRI found no time to schedule into ${plan.scope === 'today' ? 'today' : 'this week'}.`,
+    tone: 'info',
+  }
 }
 
 /**

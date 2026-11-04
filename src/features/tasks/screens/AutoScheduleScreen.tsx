@@ -93,7 +93,7 @@ export const AutoScheduleScreen = () => {
     return clash ? spanLabel(clash, feed.timeZone) : undefined
   }
 
-  if (running) return <LoadingView message="Finding time for your work…" />
+  if (running) return <LoadingView message={COPY[plan.scope].loading} />
 
   const captions = [plannerCaption(meta.aiStatus), moreToPlanCaption(meta.moreToPlan)].filter(
     (line): line is string => line !== null,
@@ -106,7 +106,7 @@ export const AutoScheduleScreen = () => {
       nothing to scroll. This sheet has real detents now, so the scroll view fills it.
     */
     <KeyboardAwareScroll align="top" contentStyle={[wash, styles.page, { gap: theme.spacing.md }]}>
-      <SheetHeader title="Suggested plan" onClose={() => navigation.goBack()} />
+      <SheetHeader title={COPY[plan.scope].title} onClose={() => navigation.goBack()} />
 
       {/* Presented modally, so the floating toast renders behind this screen. */}
       <SheetNotice />
@@ -142,7 +142,13 @@ export const AutoScheduleScreen = () => {
       )}
 
       {/* Below the proposals, because it is context rather than a decision. */}
-      <UnplacedList unplaced={unplaced} tasks={feed.allTasks} />
+      <UnplacedList
+        unplaced={unplaced}
+        tasks={feed.allTasks}
+        scope={plan.scope}
+        // Later days only when asked, and never for a single-task fix.
+        onPlanAhead={rescheduleTaskId ? undefined : () => void run(undefined, 'week')}
+      />
 
       <ClashList
         heading={clashHeading(week.items.length, 'this week')}
@@ -154,6 +160,15 @@ export const AutoScheduleScreen = () => {
     </KeyboardAwareScroll>
   )
 }
+
+/**
+ * Plan My Day plans today; the rest of the week is a second, optional pass for when
+ * today is full. The sheet says which it is showing.
+ */
+const COPY = {
+  today: { title: 'Plan for today', loading: 'Finding time today…' },
+  week: { title: 'Plan for this week', loading: 'Finding time this week…' },
+} as const
 
 const styles = StyleSheet.create({
   // Even padding. A doubled bottom left 48pt of bare wash under the last card, and

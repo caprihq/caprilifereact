@@ -123,7 +123,7 @@ export const PlannerScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
       }
     >
-      <Button label="Smart Auto-Schedule" onPress={autoSchedule} />
+      <Button label="Plan My Day" onPress={autoSchedule} />
 
       <ClashList
         heading={clashHeading(planner.clashes.length, 'today')}

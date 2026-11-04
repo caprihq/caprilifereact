@@ -2,7 +2,7 @@ import { emptyPlanNotice, moreToPlanCaption, plannerCaption } from './autoSchedu
 
 describe('emptyPlanNotice', () => {
   it('congratulates an empty list instead of reporting a failure', () => {
-    const notice = emptyPlanNotice({ reason: 'no_pending_tasks' })
+    const notice = emptyPlanNotice({ reason: 'no_pending_tasks', scope: 'today' })
 
     expect(notice.tone).toBe('success')
     expect(notice.message).toContain('clear')
@@ -12,6 +12,7 @@ describe('emptyPlanNotice', () => {
     const notice = emptyPlanNotice({
       reason: 'no_free_slots',
       workHours: { start: 9, end: 18 },
+      scope: 'week',
     })
 
     expect(notice.message).toContain('between 09:00 and 18:00')
@@ -21,7 +22,7 @@ describe('emptyPlanNotice', () => {
 
   it('still reads as a sentence when the hours are missing', () => {
     // An older backend sends no work_hours; the copy must not say "between  and ".
-    const notice = emptyPlanNotice({ reason: 'no_free_slots' })
+    const notice = emptyPlanNotice({ reason: 'no_free_slots', scope: 'week' })
 
     expect(notice.message).toContain('No free time in the next seven days')
     expect(notice.message).not.toContain('between')
@@ -30,17 +31,38 @@ describe('emptyPlanNotice', () => {
   it('does not call a fully planned list clear', () => {
     // Every task already has a future time: true that nothing is new, false that
     // the list is empty.
-    const notice = emptyPlanNotice({ reason: 'all_planned' })
+    const notice = emptyPlanNotice({ reason: 'all_planned', scope: 'today' })
 
     expect(notice.message).toContain('already has a time')
     expect(notice.message).not.toContain('clear')
   })
 
   it('falls back rather than echoing a reason it does not recognise', () => {
-    const notice = emptyPlanNotice({ reason: 'pg_pool_exhausted' })
+    const notice = emptyPlanNotice({ reason: 'pg_pool_exhausted', scope: 'today' })
 
     expect(notice.message).not.toContain('pg_pool')
     expect(notice.tone).toBe('info')
+  })
+})
+
+describe('emptyPlanNotice for today', () => {
+  it('treats a full day as information, and points at later days rather than settings', () => {
+    // Not every task needs a time today. A full day is not a fault to fix in Profile.
+    const notice = emptyPlanNotice({
+      reason: 'no_free_slots',
+      workHours: { start: 9, end: 18 },
+      scope: 'today',
+    })
+
+    expect(notice.message).toContain('No free time left today between 09:00 and 18:00')
+    expect(notice.message).toContain('stay on your list')
+    expect(notice.tone).toBe('info')
+  })
+
+  it('names today in the fallback', () => {
+    expect(emptyPlanNotice({ reason: 'mystery', scope: 'today' }).message).toContain(
+      'into today',
+    )
   })
 })
 

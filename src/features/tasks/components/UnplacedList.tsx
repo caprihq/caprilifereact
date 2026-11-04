@@ -2,10 +2,12 @@ import { View } from 'react-native'
 
 import { Card } from '@/components/Card'
 import { SectionLabel } from '@/components/SectionLabel/SectionLabel'
+import { Button } from '@/components/Button'
 import { Text } from '@/components/Text'
 import { useTheme } from '@/hooks/useTheme'
 import type { Task } from '@/types/entities'
 import { unplacedHeading, unplacedLine } from '../logic/unplacedReason'
+import type { PlanScope } from '../logic/unplacedReason'
 import type { Unplaced } from '../logic/unplacedReason'
 
 /**
@@ -24,17 +26,26 @@ type UnplacedListProps = {
   readonly unplaced: readonly Unplaced[]
   /** Every task, so an id can be shown as the name the user gave it. */
   readonly tasks: readonly Task[]
+  readonly scope: PlanScope
+  /**
+   * Look for time on later days. Offered only after a plan for today: future days
+   * are optional, for when today is full, never the default.
+   */
+  readonly onPlanAhead?: (() => void) | undefined
 }
 
-export const UnplacedList = ({ unplaced, tasks }: UnplacedListProps) => {
+export const UnplacedList = ({ unplaced, tasks, scope, onPlanAhead }: UnplacedListProps) => {
   const theme = useTheme()
   if (unplaced.length === 0) return null
 
   return (
     <View>
-      <SectionLabel>{unplacedHeading(unplaced.length)}</SectionLabel>
+      <SectionLabel>{unplacedHeading(unplaced.length, scope)}</SectionLabel>
       <Card>
         <View style={{ gap: theme.spacing.md }}>
+          <Text variant="caption" tone="muted">
+            Still on your list, ranked as usual.
+          </Text>
           {unplaced.map((entry) => {
             const task = tasks.find((candidate) => candidate.id === entry.task_id)
 
@@ -56,6 +67,14 @@ export const UnplacedList = ({ unplaced, tasks }: UnplacedListProps) => {
               </View>
             )
           })}
+
+          {scope === 'today' && onPlanAhead ? (
+            <Button
+              label="Find time later this week"
+              variant="secondary"
+              onPress={onPlanAhead}
+            />
+          ) : null}
         </View>
       </Card>
     </View>

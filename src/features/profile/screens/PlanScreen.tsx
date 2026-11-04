@@ -46,7 +46,7 @@ const BENEFITS = [
   'Unlimited tasks',
   'Unlimited voice capture',
   'AI prioritization and Up Next',
-  'Smart auto-scheduling',
+  'AI daily planning with Plan My Day',
   'Subtasks and recurring tasks',
   'Calendar integration',
 ]
