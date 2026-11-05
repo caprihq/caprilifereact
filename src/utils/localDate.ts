@@ -98,12 +98,19 @@ export const zoneOffsetMinutes = (date: Date, timeZone: string): number => {
  * Resolved twice because the offset depends on the instant it is measured at, and
  * the first guess can land on the wrong side of a DST change.
  */
-export const localHourInstant = (nowMs: number, timeZone: string, hour: number): Date => {
-  const [year = 1970, month = 1, day = 1] = toLocalDateString(new Date(nowMs), timeZone)
-    .split('-')
-    .map(Number)
+export const localHourInstant = (nowMs: number, timeZone: string, hour: number): Date =>
+  localDayHourInstant(toLocalDateString(new Date(nowMs), timeZone), timeZone, hour)
 
-  const guess = Date.UTC(year, month - 1, day, hour)
+/**
+ * `day` (YYYY-MM-DD, a date on the user's calendar) at `hour`:00 in their zone.
+ *
+ * For dates that arrive as text rather than as an instant — an AI answer of
+ * "2026-11-05" means that day where the user is, not midnight in London.
+ */
+export const localDayHourInstant = (day: string, timeZone: string, hour: number): Date => {
+  const [year = 1970, month = 1, date = 1] = day.split('-').map(Number)
+
+  const guess = Date.UTC(year, month - 1, date, hour)
   const firstOffset = zoneOffsetMinutes(new Date(guess), timeZone)
   const candidate = guess - firstOffset * 60_000
   const settledOffset = zoneOffsetMinutes(new Date(candidate), timeZone)

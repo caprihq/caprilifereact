@@ -41,7 +41,7 @@ export const useTaskParse = (userEmail: string | null, nowMs: number, timeZone: 
 
       setParsing(true)
       try {
-        const outcome = await parseTaskWithAI(trimmed, nowMs, userEmail)
+        const outcome = await parseTaskWithAI(trimmed, { nowMs, timeZone, userEmail })
         setParser(outcome.usedAI ? 'ai' : 'local')
 
         // Said out loud rather than degraded in silence: the user is watching for

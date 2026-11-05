@@ -1,6 +1,11 @@
 import { invokeAI } from './invokeAI'
 import { parseTaskHeuristically } from '@/features/tasks/logic/parseTaskInput'
 import type { ParsedTask } from '@/features/tasks/logic/parseTaskInput'
+import {
+  DUE_DATE_INSTRUCTION,
+  dueDateFromModel,
+  promptClock,
+} from '@/features/tasks/logic/aiDueDate'
 import { TASK_CATEGORIES, TASK_PRIORITIES } from '@/types/entities'
 import type { TaskCategory, TaskPriority } from '@/types/entities'
 import { logWarn } from '@/utils'
@@ -27,7 +32,11 @@ const isPriority = (value: unknown): value is TaskPriority =>
  * the date wrong should keep the title, and an omitted field should keep whatever
  * the heuristic worked out rather than becoming undefined.
  */
-const merge = (parsed: Record<string, unknown>, fallback: ParsedTask): ParsedTask => ({
+const merge = (
+  parsed: Record<string, unknown>,
+  fallback: ParsedTask,
+  timeZone: string,
+): ParsedTask => ({
   title: typeof parsed.title === 'string' && parsed.title ? parsed.title : fallback.title,
   // Only when the model actually returned prose: an empty string would overwrite a
   // description the user already had.
@@ -35,7 +44,8 @@ const merge = (parsed: Record<string, unknown>, fallback: ParsedTask): ParsedTas
     typeof parsed.description === 'string' && parsed.description.trim()
       ? parsed.description
       : fallback.description,
-  due_date: typeof parsed.due_date === 'string' ? parsed.due_date : fallback.due_date,
+  // Read in the user's zone: a bare "2026-11-05" is that day where they are.
+  due_date: dueDateFromModel(parsed.due_date, timeZone) ?? fallback.due_date,
   estimated_minutes:
     typeof parsed.estimated_minutes === 'number'
       ? parsed.estimated_minutes
@@ -56,10 +66,24 @@ export type ParseOutcome = {
   readonly usedAI: boolean
 }
 
+/** Dates are local to the user, both ways — see `aiDueDate`. */
+const taskParsePrompt = (input: string, nowMs: number, timeZone: string): string =>
+  `Extract structured task fields from this input. Today is ${promptClock(nowMs, timeZone)}.\n\n` +
+  `Input: "${input}"\n\n` +
+  `Return JSON only. "title" must be the task with date and duration words removed. ` +
+  `Put any remaining notes or detail in "description", or null if there are none. ` +
+  DUE_DATE_INSTRUCTION
+
+export type ParseContext = {
+  readonly nowMs: number
+  /** The user's zone: what "today" and "tomorrow" mean, and how dates are read back. */
+  readonly timeZone: string
+  readonly userEmail: string | null
+}
+
 export const parseTaskWithAI = async (
   input: string,
-  nowMs: number,
-  userEmail: string | null = null,
+  { nowMs, timeZone, userEmail }: ParseContext,
 ): Promise<ParseOutcome> => {
   const fallback = parseTaskHeuristically(input, nowMs)
   const startedAt = Date.now()
@@ -80,10 +104,10 @@ export const parseTaskWithAI = async (
     })
 
   try {
-    const response: unknown = await invokeAI('task_parse', `Extract structured task fields from this input. Today is ${new Date(nowMs).toISOString()}.\n\n` +
-        `Input: "${input}"\n\n` +
-        `Return JSON only. "title" must be the task with date and duration words removed. ` +
-        `Put any remaining notes or detail in "description", or null if there are none.`, {
+    const response: unknown = await invokeAI(
+      'task_parse',
+      taskParsePrompt(input, nowMs, timeZone),
+      {
         type: 'object',
         properties: {
           title: { type: 'string' },
@@ -94,7 +118,8 @@ export const parseTaskWithAI = async (
           priority: { type: ['string', 'null'], enum: [...TASK_PRIORITIES, null] },
         },
         required: ['title'],
-      })
+      },
+    )
 
     if (typeof response !== 'object' || response === null) {
       void logged(false, 'non-object response')
@@ -103,7 +128,7 @@ export const parseTaskWithAI = async (
     const parsed = response as Record<string, unknown>
 
     void logged(true)
-    return { draft: merge(parsed, fallback), usedAI: true }
+    return { draft: merge(parsed, fallback, timeZone), usedAI: true }
   } catch (error) {
     void logged(false, error instanceof Error ? error.message : 'Unknown error')
     logWarn('[addTask] AI parse failed, using heuristics', error)

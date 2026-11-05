@@ -30,6 +30,19 @@ describe('statedTimeIn', () => {
   })
 
   it.each([
+    ['lunch 11-1pm', 11, 0],
+    ['11-12pm meeting', 11, 0],
+    ['11:30–1pm', 11, 30],
+    ['9 to 12pm', 9, 0],
+    ['10-11am', 10, 0],
+    ['12-1pm', 12, 0],
+    ['8-10pm', 20, 0],
+    ['11-1am party', 23, 0],
+  ])('reads a range that crosses noon from its start: %p', (text, hour, minute) => {
+    expect(statedTimeIn(text)).toEqual({ hour, minute })
+  })
+
+  it.each([
     'Send the report by 5pm',
     'Finish before 3 PM',
     'Due 9am',

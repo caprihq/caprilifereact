@@ -13,7 +13,8 @@ import type { ParsedTask } from './parseTaskInput'
  *   point the day is planned around.
  *
  * WHAT COUNTS
- *   "7 PM", "7:30pm", "7 p.m.", "7–9pm" (the start), "noon", and 24-hour times that
+ *   "7 PM", "7:30pm", "7 p.m.", "7–9pm" (the start), "11–1pm" (11 in the morning:
+ *   a range that crosses noon), "noon", and 24-hour times that
  *   cannot be mistaken for anything else ("19:00", "08:30"). A bare "at 7" does not:
  *   it could be morning or evening, and guessing wrong is worse than not guessing.
  *
@@ -33,9 +34,9 @@ const DEADLINE_WORDS = /\b(by|before|until|till|due|deadline|no later than)\s*$/
 
 const MINUTE_MS = 60_000
 
-/** "7–9pm": the start carries the suffix written after the end. */
+/** "7–9pm": a start written without a suffix, then the end, which carries it. */
 const RANGE =
-  /\b(\d{1,2})(?::([0-5]\d))?\s*(?:-|–|to)\s*\d{1,2}(?::[0-5]\d)?\s*([ap])\.?\s?m\b\.?/gi
+  /\b(\d{1,2})(?::([0-5]\d))?\s*(?:-|–|to)\s*(\d{1,2})(?::([0-5]\d))?\s*([ap])\.?\s?m\b\.?/gi
 const TWELVE_HOUR = /\b(\d{1,2})(?::([0-5]\d))?\s*([ap])\.?\s?m\b\.?/gi
 const TWENTY_FOUR_HOUR = /\b([01]?\d|2[0-3]):([0-5]\d)\b/g
 const NOON = /\bnoon\b/gi
@@ -50,8 +51,24 @@ const matchesOf = (pattern: RegExp, text: string): RegExpExecArray[] => [
   ...text.matchAll(pattern),
 ]
 
+/**
+ * A range's start takes the end's suffix, unless that would put it after the end.
+ * "11–1pm" is lunch from 11 in the morning: read as 11pm, it was booked at night.
+ * 12am is midnight, so "11–1am" and "10–12am" start in the evening.
+ */
+const rangeStart = (match: RegExpExecArray): Found[] => {
+  const suffix = match[5] ?? ''
+  const start = twelveHour(Number(match[1]), suffix)
+  const end = twelveHour(Number(match[3]), suffix)
+  if (start === null || end === null) return []
+  const minute = Number(match[2] ?? 0)
+  const crossesHalf = start * 60 + minute > end * 60 + Number(match[4] ?? 0)
+  return [{ hour: crossesHalf ? (start + 12) % 24 : start, minute, index: match.index }]
+}
+
 const candidates = (text: string): Found[] => [
-  ...[...matchesOf(RANGE, text), ...matchesOf(TWELVE_HOUR, text)].flatMap((match) => {
+  ...matchesOf(RANGE, text).flatMap(rangeStart),
+  ...matchesOf(TWELVE_HOUR, text).flatMap((match) => {
     const hour = twelveHour(Number(match[1]), match[3] ?? '')
     return hour === null ? [] : [{ hour, minute: Number(match[2] ?? 0), index: match.index }]
   }),
