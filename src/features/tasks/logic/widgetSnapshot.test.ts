@@ -1,4 +1,9 @@
-import { buildWidgetSnapshot, sameWidgetContent } from './widgetSnapshot'
+import {
+  buildWidgetSnapshot,
+  lockedWidgetSnapshot,
+  sameWidgetContent,
+  widgetOrderOf,
+} from './widgetSnapshot'
 import { WIDGET_SNAPSHOT_SCHEMA } from '../../../../modules/capri-app-group/constants'
 import type { Task } from '@/types/entities'
 
@@ -167,5 +172,35 @@ describe('buildWidgetSnapshot — moreCount', () => {
         buildWidgetSnapshot({ ...base, totalOpen: 4 }),
       ),
     ).toBe(false)
+  })
+})
+
+describe('lockedWidgetSnapshot', () => {
+  const NOW_MS = Date.parse('2026-11-10T15:00:00.000Z')
+
+  it('carries no tasks, only the flag the widget turns into an upgrade note', () => {
+    expect(lockedWidgetSnapshot(NOW_MS)).toEqual({
+      schema: WIDGET_SNAPSHOT_SCHEMA,
+      publishedAt: '2026-11-10T15:00:00.000Z',
+      hero: null,
+      upNext: [],
+      moreCount: 0,
+      locked: true,
+    })
+  })
+
+  it('counts as a change from an empty unlocked widget, so an upgrade redraws it', () => {
+    const empty = buildWidgetSnapshot({ hero: null, upNext: [], nowMs: NOW_MS })
+    expect(sameWidgetContent(empty, lockedWidgetSnapshot(NOW_MS))).toBe(false)
+  })
+})
+
+describe('widgetOrderOf', () => {
+  const t = (id: string): Task => ({ id, title: id, status: 'pending' })
+
+  it('lists what the widget shows, hero first, for the server to keep', () => {
+    const snapshot = buildWidgetSnapshot({ hero: t('a'), upNext: [t('b'), t('c')], nowMs: 0 })
+    expect(widgetOrderOf(snapshot)).toBe('a,b,c')
+    expect(widgetOrderOf(lockedWidgetSnapshot(0))).toBe('')
   })
 })

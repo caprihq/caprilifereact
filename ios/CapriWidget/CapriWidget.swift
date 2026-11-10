@@ -101,6 +101,9 @@ struct WidgetSnapshot: Decodable {
     /// Open tasks beyond the ones sent. Optional: a snapshot written by an earlier
     /// build carries none, and absent must read as "no more", not as a crash.
     let moreCount: Int?
+    /// The widget is an Executive feature; a free account's snapshot says so instead
+    /// of carrying tasks. Absent (earlier builds) means unlocked.
+    var locked: Bool? = nil
 
     var age: TimeInterval {
         guard let published = ISO8601DateFormatter().date(from: publishedAt) else {
@@ -135,6 +138,8 @@ private struct WidgetFeed: Decodable {
 
     let hero: FeedTask?
     let up_next: [FeedTask]?
+    /// Set for a free account, which gets no tasks.
+    let locked: Bool?
 
     /// Rendered through the same model as a published snapshot, so there is one set
     /// of views and one set of states however the data arrived.
@@ -151,7 +156,8 @@ private struct WidgetFeed: Decodable {
             upNext: (up_next ?? []).map(convert),
             // The network feed sends the whole queue and no total, so what arrived is
             // all there is to know about.
-            moreCount: 0
+            moreCount: 0,
+            locked: locked
         )
     }
 }
@@ -342,6 +348,7 @@ private struct StoredSnapshot: Encodable {
     let hero: StoredTask?
     let upNext: [StoredTask]
     let moreCount: Int?
+    let locked: Bool?
 
     init(from snapshot: WidgetSnapshot) {
         let convert = { (task: WidgetTask) in
@@ -353,6 +360,7 @@ private struct StoredSnapshot: Encodable {
         hero = snapshot.hero.map(convert)
         upNext = snapshot.upNext.map(convert)
         moreCount = snapshot.moreCount
+        locked = snapshot.locked
     }
 }
 
@@ -387,6 +395,10 @@ struct CapriWidgetEntryView: View {
                 MessageView(icon: "person.crop.circle.badge.exclamationmark", text: "Open CAPRI to sign in")
             case .failed:
                 MessageView(icon: "wifi.exclamationmark", text: "Couldn't load tasks")
+            case .loaded(let snapshot) where snapshot.locked == true:
+                // Free plan: say what unlocks it, and open the app on Home.
+                MessageView(icon: "lock.fill", text: "Upgrade to CAPRI Executive to see your next task here")
+                    .widgetURL(CapriShared.homeURL)
             case .loaded(let snapshot):
                 if let hero = snapshot.hero {
                     switch family {

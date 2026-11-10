@@ -38,6 +38,11 @@ export type WidgetSnapshot = {
    * lets it say so in a line, instead of a list that quietly stops.
    */
   readonly moreCount: number
+  /**
+   * The widget is an Executive feature. A free account's widget gets this instead of
+   * tasks, and says what unlocks it. Absent means unlocked, as from earlier builds.
+   */
+  readonly locked?: boolean
 }
 
 const toWidgetTask = (task: Task): WidgetTask => ({
@@ -73,12 +78,40 @@ export const buildWidgetSnapshot = (input: {
   }
 }
 
+/** What a free account's widget draws: no tasks, and a note saying what unlocks it. */
+export const lockedWidgetSnapshot = (nowMs: number): WidgetSnapshot => ({
+  schema: WIDGET_SNAPSHOT_SCHEMA,
+  publishedAt: new Date(nowMs).toISOString(),
+  hero: null,
+  upNext: [],
+  moreCount: 0,
+  locked: true,
+})
+
 /**
  * Has anything the widget can see actually changed?
  *
  * `publishedAt` moves on every render pass, so comparing whole snapshots would
  * rewrite the store and reload the widget several times a minute for nothing.
  */
+const visiblePart = (s: WidgetSnapshot) => ({
+  hero: s.hero,
+  upNext: s.upNext,
+  moreCount: s.moreCount,
+  locked: s.locked === true,
+})
+
 export const sameWidgetContent = (a: WidgetSnapshot, b: WidgetSnapshot): boolean =>
-  JSON.stringify({ hero: a.hero, upNext: a.upNext, moreCount: a.moreCount }) ===
-  JSON.stringify({ hero: b.hero, upNext: b.upNext, moreCount: b.moreCount })
+  JSON.stringify(visiblePart(a)) === JSON.stringify(visiblePart(b))
+
+/**
+ * The order the widget is showing, hero first, for the server to keep.
+ *
+ * When a task changes somewhere the app cannot see — added in the browser, a
+ * recurrence rolling over — the reminder sweep pushes the widget a fresh snapshot.
+ * It used to rank that snapshot itself, by priority alone, so the widget named a
+ * different Start Here than Home until the app was next opened. With this it keeps
+ * Home's order, drops what is no longer open, and only fills the gaps itself.
+ */
+export const widgetOrderOf = (snapshot: WidgetSnapshot): string =>
+  [snapshot.hero, ...snapshot.upNext].flatMap((task) => (task ? [task.id] : [])).join(',')

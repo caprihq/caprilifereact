@@ -49,6 +49,7 @@ const BENEFITS = [
   'AI daily planning with Plan My Day',
   'Subtasks and recurring tasks',
   'Calendar integration',
+  'Home Screen widget',
 ]
 
 export const PlanScreen = () => {

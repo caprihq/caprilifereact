@@ -35,12 +35,14 @@ export const countRefresh = (nowMs: number): void => {
 }
 
 /** Store the answer so a remount inside the TTL costs nothing. */
-/** Four values travel together, so they arrive as one (§3.2 max-params). */
+/** Five values travel together, so they arrive as one (§3.2 max-params). */
 export const remember = (entry: {
   readonly final: readonly UpNextEntry[]
   readonly cachedAtMs: number
   readonly tier: 'free' | 'paid'
   readonly candidateIds: readonly string[]
+  /** What a model answer was given for; null for the local fallback. */
+  readonly ranking: { readonly day: string; readonly lines: readonly string[] } | null
 }): void => {
   mmkvPrefStore.setString(
     CACHE_KEY,
@@ -52,6 +54,9 @@ export const remember = (entry: {
       cachedAtMs: entry.cachedAtMs,
       tier: entry.tier,
       candidateIds: entry.candidateIds,
+      ...(entry.ranking
+        ? { rankingDay: entry.ranking.day, rankingLines: entry.ranking.lines }
+        : {}),
     } satisfies CacheEntry),
   )
 }

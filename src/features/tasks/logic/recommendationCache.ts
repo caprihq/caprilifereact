@@ -8,7 +8,8 @@ import type { Task } from '@/types/entities'
  *
  * - **A 30-minute TTL.** The recommendation is a judgement about "right now", and
  *   re-asking the model on every mount would spend on a question whose answer has
- *   not changed.
+ *   not changed. An answer for the same tasks on the same day is kept past it —
+ *   see `rankingKey`.
  * - **Three manual refreshes a day on the free plan.** Counted per calendar day, so
  *   the budget resets at local midnight rather than 24 hours after first use.
  *
@@ -48,6 +49,13 @@ export type CacheEntry = {
    * "nothing was available" — see `hasNewCandidates`.
    */
   readonly candidateIds?: readonly string[]
+  /**
+   * The day and the tasks a *model* answer was given for — see `rankingSignature`.
+   * Absent for a local fallback, which is retried after the TTL like any answer, and
+   * for entries written by earlier builds.
+   */
+  readonly rankingDay?: string
+  readonly rankingLines?: readonly string[]
 }
 
 /**

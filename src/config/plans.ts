@@ -30,6 +30,7 @@ export const FEATURES = [
   'auto_schedule',
   'integrations',
   'analytics',
+  'widget',
 ] as const
 export type Feature = (typeof FEATURES)[number]
 
@@ -49,6 +50,8 @@ const FEATURE_REQUIREMENT: Record<Feature, Plan> = {
   auto_schedule: 'executive',
   integrations: 'executive',
   analytics: 'executive',
+  // The home-screen widget. Free accounts see an upgrade note in its place.
+  widget: 'executive',
 }
 
 /** Free-tier caps, matching the web client. */

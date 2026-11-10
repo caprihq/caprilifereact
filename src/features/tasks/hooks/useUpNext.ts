@@ -6,16 +6,17 @@ import { trackRanking } from '@/services'
 import type { Task } from '@/types/entities'
 import { getTaskReason } from '../logic/taskReason'
 import {
+  CACHE_TTL_MS,
   FREE_REFRESH_LIMIT,
   RECOMMENDATION_COUNT,
   canRefresh,
   fallbackRecommendations,
-  hasNewCandidates,
   hydrate,
-  isFresh,
   topUpEntries,
   visibleEntries,
 } from '../logic/recommendationCache'
+import { canReuse, rankingSignature } from '../logic/rankingSignature'
+import type { RankingSignature } from '../logic/rankingSignature'
 import { recommendTasks } from '../services/aiRecommendations'
 import { countRefresh, readCache, readCount, remember } from '../services/upNextStore'
 import type { UpNextEntry } from '../services/upNextStore'
@@ -34,7 +35,9 @@ import { useUserContext } from './useUserContext'
  * Three guards, all from the web client, all about not spending on a question whose
  * answer has not changed:
  *
- *  - a **30-minute cache**, so remounting the screen is free;
+ *  - a **cache**, kept for as long as the day and the tasks are the same (see
+ *    `rankingSignature`), and for 30 minutes after a change, so remounting the screen
+ *    is free and Start Here does not reword itself while someone is reading it;
  *  - **three manual refreshes a day** on the free plan, reset at local midnight;
  *  - a **local fallback** whenever the model is unavailable or the budget is spent,
  *    so the card is never empty. An Up Next that empties itself on a failed request
@@ -66,6 +69,22 @@ export type UpNextRequest = {
 }
 
 /**
+ * The cached answer, if it still stands — the first paint on a launch, so Home opens
+ * on what it showed last time (and what the widget shows) instead of the local
+ * ranking for a moment first.
+ */
+const cachedEntries = (
+  current: { readonly signature: RankingSignature; readonly candidates: readonly Task[] },
+  clock: { readonly nowMs: number; readonly tier: 'free' | 'paid' },
+  local: readonly UpNextEntry[],
+): readonly UpNextEntry[] => {
+  const cached = readCache()
+  if (!canReuse(cached, current, clock) || !cached) return []
+  const hydrated = hydrate(cached.recommendations, current.candidates)
+  return hydrated.length > 0 ? topUpEntries(hydrated, local) : []
+}
+
+/**
  * The local ranking, always available and always the fallback.
  *
  * Its own hook so `useUpNext` stays inside the 80-line limit (§3.2).
@@ -79,6 +98,19 @@ const useLocalRanking = (shortlist: readonly Task[], nowMs: number): readonly Up
     [shortlist, nowMs],
   )
 
+/** The question Home is asking — see `rankingSignature`. Compared by `key`, not identity. */
+const useRankingSignature = (candidates: readonly Task[], nowMs: number, timeZone: string) =>
+  useMemo(() => rankingSignature(candidates, nowMs, timeZone), [candidates, nowMs, timeZone])
+
+/**
+ * After a failed call the local ranking stands in, and the model is tried again each
+ * half hour rather than only when the tasks change: `retryBucket` moves on then.
+ */
+const useRetryClock = (nowMs: number) => {
+  const [retrying, setRetrying] = useState(false)
+  return { retryBucket: retrying ? Math.floor(nowMs / CACHE_TTL_MS) : 0, setRetrying }
+}
+
 export const useUpNext = (request: UpNextRequest) => {
   const { candidates, shortlist, userEmail, nowMs, timeZone } = request
   const { show } = useFeedback()
@@ -86,10 +118,13 @@ export const useUpNext = (request: UpNextRequest) => {
   const tier = hasAccess('analytics') ? 'paid' : 'free'
   const contextSummary = useUserContext({ userEmail, nowMs, timeZone })
 
-  const [entries, setEntries] = useState<readonly UpNextEntry[]>([])
-  const [loading, setLoading] = useState(false)
-
   const local = useLocalRanking(shortlist, nowMs)
+  const signature = useRankingSignature(candidates, nowMs, timeZone)
+  const [entries, setEntries] = useState<readonly UpNextEntry[]>(() =>
+    cachedEntries({ signature, candidates }, { nowMs, tier }, local),
+  )
+  const [loading, setLoading] = useState(false)
+  const { retryBucket, setRetrying } = useRetryClock(nowMs)
 
   const ask = useCallback(
     async (force: boolean) => {
@@ -115,7 +150,9 @@ export const useUpNext = (request: UpNextRequest) => {
       // pass left out of the shortlist, which is the point of asking it.
       const hydrated = hydrate(recommended ?? fallbackRecommendations(local), candidates)
       // A success only if the model named tasks that still exist to show.
-      trackRanking({ fromModel: recommended !== null && hydrated.length > 0, manual: force })
+      const fromModel = recommended !== null && hydrated.length > 0
+      trackRanking({ fromModel, manual: force })
+      setRetrying(!fromModel)
       // Topped up rather than replaced: a model that answers with fewer than it was
       // asked for, or names tasks since deleted, used to empty the queue outright.
       const final = topUpEntries(hydrated, local)
@@ -126,28 +163,25 @@ export const useUpNext = (request: UpNextRequest) => {
         cachedAtMs: nowMs,
         tier,
         candidateIds: candidates.map((task) => task.id),
+        ranking: fromModel ? { day: signature.day, lines: signature.lines } : null,
       })
     },
-    [candidates, contextSummary, local, nowMs, show, tier, userEmail],
+    [candidates, contextSummary, local, nowMs, setRetrying, show, signature, tier, userEmail],
   )
 
   const load = useCallback(
     (force: boolean) => {
-      const cached = readCache()
-      // A task added since the last ranking makes it stale, however recent it is:
-      // otherwise the new task lands at the end of Up Next no matter how urgent,
-      // and stays there until someone presses "Ask CAPRI again".
-      const stale = hasNewCandidates(cached, candidates)
-      if (!force && !stale && cached && isFresh(cached, nowMs, tier)) {
-        const hydrated = hydrate(cached.recommendations, candidates)
-        if (hydrated.length > 0) {
-          setEntries(topUpEntries(hydrated, local))
-          return
-        }
+      // Reused while it still stands; a task added since makes it stale — see `canReuse`.
+      const reused = force
+        ? []
+        : cachedEntries({ signature, candidates }, { nowMs, tier }, local)
+      if (reused.length > 0) {
+        setEntries(reused)
+        return
       }
       void ask(force)
     },
-    [ask, candidates, local, nowMs, tier],
+    [ask, candidates, local, nowMs, signature, tier],
   )
 
   useEffect(() => {
@@ -161,10 +195,12 @@ export const useUpNext = (request: UpNextRequest) => {
     return () => {
       clearTimeout(timer)
     }
-    // Keyed on the task set, not on `load`: the callback changes identity whenever
-    // the clock ticks, which would re-ask the model every minute.
+    // Keyed on what the ranking depends on, not on `load` or the task array: both
+    // change identity whenever the clock ticks, and keying on them re-ran this every
+    // minute — which, once the cache was half an hour old, re-asked the model and
+    // reworded Start Here on an open screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidates])
+  }, [signature.key, retryBucket])
 
   // Checked against the live task list on the way out — see `visibleEntries`.
   const visible = useMemo(
